@@ -18,11 +18,11 @@ def sigmoid(x):
     return sig
 
 def plot_loss(history):
-  plt.figure()
-  plt.plot(history.history['loss'], label='Loss')
-  plt.plot(history.history['val_loss'], label='Val loss')
-  plt.xlabel('Epoch')
-  plt.ylabel('Loss')
-  plt.legend()
-  plt.grid(False)
-  plt.show()
+    plt.figure()
+    plt.plot(history.history['loss'], label='Loss')
+    plt.plot(history.history['val_loss'], label='Val loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(False)
+    plt.show()
