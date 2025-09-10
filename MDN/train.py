@@ -17,13 +17,15 @@ def parse_args():
     parser.add_argument('--nr_neurons', type=int, default=8, help='Number of neurons in hidden layers')
     parser.add_argument('--activation_function', type=str, default='relu', help='Activation function for hidden layers')
     parser.add_argument('--show-loss', action='store_true', help='Show loss plot after training')
+    parser.add_argument('--save-model', action='store_true', help='Save the trained model weights')
+    parser.add_argument('--test-size', type=float, default=0.3, help='Proportion of test data')
     return parser.parse_args()
 
 def main():
     args = parse_args()
     
     data = load_data('collision_dataset.txt')
-    x_train, y_train, x_test, y_test = preprocessing(data)
+    x_train, y_train, x_test, y_test = preprocessing(data, test_size=args.test_size)
 
     CB = [
         tf.keras.callbacks.EarlyStopping(
@@ -46,8 +48,10 @@ def main():
     if args.show_loss:
         plot_loss(history)
     
-    # Save model
-    mdn.save_weights(os.path.join(MODEL_DIR, 'mdn_weights.h5'))
+    if args.save_model:
+        if not os.path.exists(MODEL_DIR):
+            os.makedirs(MODEL_DIR)
+        mdn.save_weights(os.path.join(MODEL_DIR, 'mdn_weights.h5'))
 
 if __name__ == "__main__":
     main()
