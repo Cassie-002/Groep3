@@ -1,0 +1,4 @@
+data/*
+notebooks/*
+models/*
+__pycache__/
