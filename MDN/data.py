@@ -13,8 +13,8 @@ def load_data(file_name, path=DATA_DIR):
     data = pd.read_csv(file)
     return data
 
-def preprocessing(data, test_size=0.3):
-    train, test = train_test_split(data, test_size=test_size)
+def preprocessing(data, test_size=0.3, include_b=False):
+    train, test = train_test_split(data, test_size=test_size, random_state=42)
 
     Ec_train, eps_t_train, eps_r1_train, eps_tp_train, eps_r1p_train = compute_features(train)
     Ec_test, eps_t_test, eps_r1_test, eps_tp_test, eps_r1p_test = compute_features(test)
@@ -25,6 +25,18 @@ def preprocessing(data, test_size=0.3):
     x_test = np.vstack((np.log(Ec_test), inv_sigmoid(eps_t_test), inv_sigmoid(eps_r1_test))).T
     y_test = np.vstack((inv_sigmoid(eps_tp_test), inv_sigmoid(eps_r1p_test))).T
     
+    
+    if include_b:
+        b_train = train['b'].values[..., np.newaxis]
+        b_test = test['b'].values[..., np.newaxis]
+        
+        print(f"b_train size: {b_train.shape}, b_test size: {b_test.shape}")
+        print(f"x_train size before: {x_train.shape}, x_test size before: {x_test.shape}")
+        
+        x_train = np.hstack((x_train, b_train))
+        x_test = np.hstack((x_test, b_test))
+        
+        print(f"x_train size after: {x_train.shape}, x_test size after: {x_test.shape}")    
     return x_train, y_train, x_test, y_test
 
 # Compute new (dimensionless) energies
