@@ -4,11 +4,11 @@ from scipy.stats import gaussian_kde
 
 def dscatter(x,y):
     xy = np.vstack([x,y])
-    z = gaussian_kde(xy)(xy)
-    idx = z.argsort()
-    x, y, z = x[idx], y[idx], z[idx]
-    plt.scatter(x,y,c=z, s=10)
-    
+    c = gaussian_kde(xy)(xy)
+    idx = c.argsort()
+    x, y, c = x[idx], y[idx], c[idx]
+    return x, y, c
+
 def inv_sigmoid(x):
     return np.log((x)/(1-(x)))
 
