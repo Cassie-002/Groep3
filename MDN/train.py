@@ -19,13 +19,14 @@ def parse_args():
     parser.add_argument('--show-loss', action='store_true', help='Show loss plot after training')
     parser.add_argument('--save-model', action='store_true', help='Save the trained model weights')
     parser.add_argument('--test-size', type=float, default=0.3, help='Proportion of test data')
+    parser.add_argument('--include-b', action='store_true', help='Include impact parameter in input features')
     return parser.parse_args()
 
 def main():
     args = parse_args()
     
     data = load_data('collision_dataset.txt')
-    x_train, y_train, x_test, y_test = preprocessing(data, test_size=args.test_size)
+    x_train, y_train, x_test, y_test = preprocessing(data, test_size=args.test_size, include_b=args.include_b)
 
     CB = [
         tf.keras.callbacks.EarlyStopping(
