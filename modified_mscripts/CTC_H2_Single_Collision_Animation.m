@@ -1,0 +1,352 @@
+%% Clear workspace, command window and figues
+close all; clear; clc;
+format long G
+
+%% Specifying the number of collisions
+ncoll = 1;
+
+%% Database initialization (Nx7 Table)
+varTypes = ["double","double","double","double","double","double","double",];
+varNames = ["b/sigmaLJ","Etr/kB","Er1/kB","Er2/kB","Etr'/kB","Er1'/kB","Er2'/kB"];
+Table = table('Size',[ncoll,length(varNames)],'VariableTypes',varTypes,'VariableNames',varNames);
+
+%% Constants
+m_H  = 1.6738e-27;              % Hydrogen atom mass [kg]
+m_H2 = m_H*2;                   % Hydrogen molecule mass [kg]
+sigma_LJ = 3.06*1e-10;          % LJ length-parameter [m]
+kB = 1.38064852e-23;            % Boltzmann constant [m^2*kg/s^2/K]
+mu_H2 = m_H2*m_H2/(m_H2+m_H2);  % Reduced mass H2 [kg]
+d_H2 = 0.741*1e-10;             % Interatomic distance for H2 molecule [m]
+I = 0.5*d_H2^2*m_H;             % Hydrogen moment of inertia [kg m^2]
+
+%% Simulation settings
+dt = 0.5e-15;        % Time-step [s]
+dt2 = dt*dt;         % Time-step squared [s^2]
+tsim = 2e-12;        % Max. simulation time [s]
+nSteps = tsim/dt;    % Max. number of steps
+
+tic
+for i = 1:ncoll
+%% Configuration properties
+    Etr_K_max = 5900;                    % Maximum translational energy [K]
+    Etr_K = 100+rand*Etr_K_max;         % Actual translational energy [K]
+    Etr_J = Etr_K*kB;                   % Energy [J]
+    vtr = sqrt(Etr_J/m_H2);             % Velocity [m/s]
+
+    bmax = 1.5*sigma_LJ;             % max. impact parameter [m]
+    b = rand*bmax;                      % Actual impact parameter [m]
+    bvec(i) = {b/sigma_LJ};
+
+    Erot_K_max = 3000;                    % Maximum rotational energy [K]
+    Erot_tot_1 = rand*Erot_K_max*kB;     % Actual rotational Energy of molecule 1 [J]
+    Erot_tot_2 = rand*Erot_K_max*kB;     % Actual rotational Energy of molecule 2 [J] 
+
+    frac11 = rand;                      % Fraction of rotational energy in mode 1 (molecule 1)
+    frac21 = rand;                      % Fraction of rotational energy in mode 1 (molecule 1)          
+
+    Er11 = frac11*Erot_tot_1;    Er12 = (1-frac11)*Erot_tot_1; % Rotational energies [J]
+    Er21 = frac21*Erot_tot_2;    Er22 = (1-frac21)*Erot_tot_2; % Rotational energies [J]
+    
+    w11 = ((rand(1,1) > 0.5)*2 - 1)*sqrt(2*Er11/I);       % Angular velocity [rad/s]
+    w12 = ((rand(1,1) > 0.5)*2 - 1)*sqrt(2*Er12/I);       % Angular velocity [rad/s]  
+    w21 = ((rand(1,1) > 0.5)*2 - 1)*sqrt(2*Er21/I);       % Angular velocity [rad/s]
+    w22 = ((rand(1,1) > 0.5)*2 - 1)*sqrt(2*Er22/I);       % Angular velocity [rad/s]  
+  
+    w1 = [w11;w12;0];       % Angular velocity vector
+    w2 = [w21;w22;0];       % Angular velocity vector
+    
+    % Molecule 1 with 2 atoms 1 and 2
+    m11 = m_H;               % Atom mass [kg]
+    m12 = m_H;               % Atom mass [kg]
+    m1  = m11+m12;           % Molecular mass [kg]
+    r11 = 2.5e-11;           % Atom diameter [m]
+    r12 = 2.5e-11;           % Atom diameter [m]
+    
+    % Molecule 2 with 2 atoms 1 and 2
+    m21 = m_H;               % Atom mass [kg]
+    m22 = m_H;               % Atom mass [kg]
+    m2  = m21+m22;           % Molecular mass [kg]
+    r21 = 2.5e-11;           % Atom diameter [m]
+    r22 = 2.5e-11;           % Atom diameter [m]
+
+    %% Initial conditions
+    X1 = [sigma_LJ*-2, 0, -b/2];    % COM position molecule 1 [m]
+    X2 = [sigma_LJ*2,  0, b/2];     % COM position molecule 2 [m]
+  
+    X11_0 = [0, 0, 0.5*d_H2];       % Atom position 1 [m]
+    X12_0 = [0, 0, -0.5*d_H2];      % Atom position 2 [m]
+
+    X21_0 = [0, 0, 0.5*d_H2];      % Atom position 3 [m]
+    X22_0 = [0, 0, -0.5*d_H2];     % Atom position 4 [m]
+    
+    % Set random initial rotational orientation    
+    R1 = getRandRotMat;     
+    R2 = getRandRotMat;     
+
+    Xv11 = R1*X11_0';
+    Xv12 = R1*X12_0';
+    Xv21 = R2*X21_0';
+    Xv22 = R2*X22_0';
+
+    X11 = X1+Xv11';
+    X12 = X1+Xv12';    
+    X21 = X2+Xv21';
+    X22 = X2+Xv22';
+    
+    V1=[vtr,0,0];     % Initial velocity vector [m/s]
+    V2=[-vtr,0,0];    % Initial velocity vector [m/s]
+
+    [x,y,z] = sphere;    
+    x11 = x*r11+X11(1);    y11 = y*r11+X11(2);    z11 = z*r11+X11(3); 
+    x12 = x*r12+X12(1);    y12 = y*r12+X12(2);    z12 = z*r12+X12(3); 
+    x21 = x*r21+X21(1);    y21 = y*r21+X21(2);    z21 = z*r21+X21(3); 
+    x22 = x*r22+X22(1);    y22 = y*r22+X22(2);    z22 = z*r22+X22(3);
+    
+    figure(1)
+    set(gcf,'Position',[100 100 560*1.5 420*1.5])
+    t = tiledlayout(2,2);
+    set(gcf,'color','white')
+    axfirst = nexttile([2,2]);
+    s1=surf(x11,y11,z11,'EdgeColor','None','FaceColor','[0.4940 0.1840 0.5560]');
+    hold on
+    s2=surf(x12,y12,z12,'EdgeColor','None','FaceColor','[0.4940 0.1840 0.5560]');
+    c=plot3([X11(1) X12(1)],[X11(2) X12(2)],[X11(3) X12(3)],'-','color','[0.4940 0.1840 0.5560]', 'LineWidth',2);
+    s3=surf(x21,y21,z21,'EdgeColor','None','FaceColor','[0.8500 0.3250 0.0980]');
+    s4=surf(x22,y22,z22,'EdgeColor','None','FaceColor','[0.8500 0.3250 0.0980]');
+    f =plot3([X21(1) X22(1)],[X21(2) X22(2)],[X21(3) X22(3)],'-','color','[0.8500 0.3250 0.0980]', 'LineWidth',2);
+    grid on
+    box on
+    title('Binary collision of two hydrogen molecules')
+    xlim([-3*sigma_LJ 3*sigma_LJ])
+    ylim([-1.5*sigma_LJ 1.5*sigma_LJ])
+    zlim([-2.2*sigma_LJ 2.2*sigma_LJ])
+    xlabel('x-Position (m)')
+    ylabel('y-Position (m)')
+    zlabel('z-Position (m)')
+    set(gca, 'FontSize',15);
+    set(gca,'linewidth',1)
+
+    
+    
+    % Preallocation data arrays
+    Ekin1 = zeros(1,round(nSteps));
+    Ekin2 = zeros(1,round(nSteps)); 
+    Erot1 = zeros(1,round(nSteps));
+    Erot2 = zeros(1,round(nSteps));
+    Elj13 = zeros(1,round(nSteps));
+    Elj14 = zeros(1,round(nSteps));
+    Elj23 = zeros(1,round(nSteps));
+    Elj24 = zeros(1,round(nSteps));
+    dr12v = zeros(1,round(nSteps));
+    dr13v = zeros(1,round(nSteps));
+    dr14v = zeros(1,round(nSteps));
+    dr23v = zeros(1,round(nSteps));
+    dr24v = zeros(1,round(nSteps));
+    dr34v = zeros(1,round(nSteps));
+    drABv = zeros(1,round(nSteps));
+
+
+    dr = 0;
+    step = 0;
+    %% Simulation
+    while dr <= 5*sigma_LJ
+        step = step + 1;
+        dr = norm(X1-X2);
+        drABv(step) = dr;
+        % Extracting values at timestep (t)
+        Ekin1(step) = 0.5*m1*norm(V1)^2;            % Translational kinetic energy [J]
+        Ekin2(step) = 0.5*m2*norm(V2)^2;            % Translational kinetic energy [J]
+        Erot1(step) = 0.5*I*(w1(1)^2+w1(2)^2);      % Rotational kinetic energy [J]
+        Erot2(step) = 0.5*I*(w2(1)^2+w2(2)^2);      % Rotational kinetic energy [J]
+
+        % Computing interatomic distances and energies at timestep (t)
+        dr13 = norm(X11-X21);   dr13v(step)=dr13;     Elj13(step)  = LJ_e(dr13); 
+        dr14 = norm(X11-X22);   dr14v(step)=dr14;     Elj14(step)  = LJ_e(dr14);
+        dr23 = norm(X12-X21);   dr23v(step)=dr23;     Elj23(step)  = LJ_e(dr23);
+        dr24 = norm(X12-X22);   dr24v(step)=dr24;     Elj24(step)  = LJ_e(dr24);
+        
+        % Computing interatomic distance for molecules 1 and 2
+        dr12v(step) = norm(X11-X12);
+        dr34v(step) = norm(X21-X22);
+
+        % Computing the interatomic forces in the inertial frame  at 
+        % time-step (t) using the modeled interatomic potential. 
+        % For translational motion, the sum of the forces determines the 
+        % acceleration of the molecules' COM.
+
+        F13tr = getFij(X11, X21);  
+        F14tr = getFij(X11, X22);           
+        F23tr = getFij(X12, X21);       
+        F24tr = getFij(X12, X22); 
+           
+        F1 = (F13tr+F14tr+F23tr+F24tr);
+        F2 = -F1;
+      
+        
+        % Computing the momenta in the body-fixed frames using the forces
+        % in inertial frame and the orientations of the molecules. Momenta
+        % are computed at time-step (t)
+
+        [M1, M2] = getM(F13tr, F14tr, F23tr, F24tr, R1, R2, d_H2);
+
+        %% Velocity-verlet algorithm
+        % The half-step velocities at (t+0.5dt) are computed using
+        % the acceleration computed with the force at time-step (t). This
+        % step may be eliminated by substituting these lines further in the
+        % code.
+        V1_ = V1 + 0.5*dt*getVdot(F1,m1);
+        V2_ = V2 + 0.5*dt*getVdot(F2,m2);
+        
+        % The positions at (t+dt) are updated using the previous positions
+        % at (t) and the half-step velocities at (t+0.5dt).
+        X1 = X1 + dt*V1_;
+        X2 = X2 + dt*V2_;
+
+        % To compute the half-step derivative of the rotation matrix R at
+        % (t+0.5dt), an estimation of the rotation matrix at (t+0.5dt) is
+        % required. This computation is identical to that of the half-step 
+        % velocities.
+        R1_ = R1+0.5*dt*getRdot(w1, R1);
+        R2_ = R2+0.5*dt*getRdot(w2, R2);
+        
+        % The half-step angular velocities at (t+0.5dt) are computed
+        % identical to the translational velocities.
+        w1_ = w1 + 0.5*dt*getWdot(M1, I)';
+        w2_ = w2 + 0.5*dt*getWdot(M2, I)';
+        
+        % The rotational orientations at (t+dt) are updated identical to
+        % the translational positions.
+        R1 = R1 + dt*getRdot(w1_, R1_);
+        R2 = R2 + dt*getRdot(w2_, R2_);
+        
+        % Atomic positions at (t+dt) are updated using the positions of
+        % the centers of masses at (t+dt), and the rotation matrices at
+        % (t+dt).
+        Xv11 = R1*X11_0';
+        Xv12 = R1*X12_0';
+        Xv21 = R2*X21_0';
+        Xv22 = R2*X22_0';
+        
+        X11 = X1+Xv11';
+        X12 = X1+Xv12';    
+        X21 = X2+Xv21';
+        X22 = X2+Xv22';
+        
+        % Forces and momenta at (t+dt) are computed with the updated atomic
+        % positions at (t+dt) and the interatomic potential.
+        F13tr_ = getFij(X11, X21); 
+        F14tr_ = getFij(X11, X22);      
+        F23tr_ = getFij(X12, X21);     
+        F24tr_ = getFij(X12, X22); 
+        
+        F1_ = (F13tr_+F14tr_+F23tr_+F24tr_);
+        F2_ = -F1_;
+        
+        [M1_, M2_] = getM(F13tr_, F14tr_, F23tr_, F24tr_, R1, R2, d_H2);
+
+        % Translational and angular velocities at (t+dt) 
+        % are updated using the new forces and momenta at (t+dt).
+        V1 = V1_ + 0.5*dt*getVdot(F1_,m1);
+        V2 = V2_ + 0.5*dt*getVdot(F2_,m2);
+        
+        w1 = w1_ + 0.5*dt*getWdot(M1_, I)'; 
+        w2 = w2_ + 0.5*dt*getWdot(M2_, I)'; 
+  
+        
+        % Updating animation
+        x11 = x*r11+X11(1);        y11 = y*r11+X11(2);        z11 = z*r11+X11(3); 
+        x12 = x*r12+X12(1);        y12 = y*r12+X12(2);        z12 = z*r12+X12(3); 
+        x21 = x*r21+X21(1);        y21 = y*r21+X21(2);        z21 = z*r21+X21(3); 
+        x22 = x*r22+X22(1);        y22 = y*r22+X22(2);        z22 = z*r22+X22(3);  
+        
+        drawnow;
+        set(s1,'XData',x11, 'YData', y11, 'ZData', z11);
+        set(s2,'XData',x12, 'YData', y12, 'ZData', z12);
+        set(c,'XData',[X11(1) X12(1)], 'YData',[X11(2) X12(2)],'ZData',[X11(3) X12(3)]);
+        set(s3,'XData',x21, 'YData', y21, 'ZData', z21);
+        set(s4,'XData',x22, 'YData', y22, 'ZData', z22);
+        set(f,'XData',[X21(1) X22(1)], 'YData',[X21(2) X22(2)],'ZData',[X21(3) X22(3)]);
+        plot3(X1(1),X1(2),X1(3),'k.','markersize',.11,'Parent',axfirst)
+        plot3(X2(1),X2(2),X2(3),'k.','markersize',.11,'Parent',axfirst)
+        
+        filename='CTC_animation.gif';
+        frame = getframe(1);
+        im = frame2im(frame);
+        [imind,cm] = rgb2ind(im,256);
+        if step == 1
+             imwrite(imind,cm,filename,'gif','DelayTime',1/60, 'Loopcount',1);
+        else
+             imwrite(imind,cm,filename,'gif','DelayTime',1/60,'WriteMode','append');
+        end
+    end   
+    
+    % Assigning data to dataset and preallocated data arrays
+    Ekin = Ekin1 + Ekin2;
+    Erot = Erot1 + Erot2;
+    Elj  = Elj13 + Elj14 + Elj23 + Elj24;
+    Etot = Ekin  + Erot  + Elj;  
+    
+    Etrrvec(i) = {Ekin(1)/kB};
+    Etrrpvec(i) = {Ekin(step)/kB};
+    Er1vec(i) = {Erot1(1)/kB};
+    Er2vec(i) = {Erot2(1)/kB};      
+    Er1pvec(i) = {Erot1(step)/kB};
+    Er2pvec(i) = {Erot2(step)/kB};
+    
+end
+toc
+
+% Fill table
+Table(:,1) = bvec';
+Table(:,2) = Etrrvec';
+Table(:,3) = Er1vec';
+Table(:,4) = Er2vec';
+Table(:,5) = Etrrpvec';
+Table(:,6) = Er1pvec';
+Table(:,7) = Er2pvec';
+
+%% Visualization
+tvec = [dt:dt:dt*step]/1e-15;
+
+figure(2)
+set(gcf,'color','white')
+set(gcf,'Position',[400 50 560*1.8 420*1.5])
+t = tiledlayout(5,1);
+ax1 = nexttile([3,1]);
+plot(tvec, Ekin(1:step)/kB,'linewidth',2.5)
+hold on
+plot(tvec, Erot1(1:step)/kB,'linewidth',2.5)
+plot(tvec, Erot2(1:step)/kB,'linewidth',2.5)
+plot(tvec, Elj(1:step)/kB,'linewidth',2.5)
+plot(tvec, (Ekin(1:step)+Erot1(1:step)+Erot2(1:step)+Elj(1:step))/kB,'k-','linewidth',2.5)
+ylim([min(Elj(1:step)/kB)-500, max(Etot(1:step))/kB+200])
+xlim([0,tvec(end)])
+set(gca, 'FontSize',15);
+ylabel('Energy/k_B (K)')
+title('Time-evolution of energies')
+leg = legend('Translational','Rotational (A)','Rotational (B)','Potential','Total','location','eastoutside','numcolumns',1,'fontsize',16);
+set(leg.BoxFace, 'ColorType','truecoloralpha', 'ColorData',uint8(255*[1;1;1;.5]));
+leg.LineWidth = 1;
+leg.EdgeColor = '[0.8 0.8 0.8]';
+set(gca,'linewidth',1)
+
+ax2 = nexttile([2,1]);
+plot(tvec, drABv(1:step)./sigma_LJ,'linewidth',2.5,'color',[0.4940, 0.1840, 0.5560])
+hold on
+title('Time-evolution of the intermolecular distance')
+yline(5,'k--','Termination distance','linewidth',1,'fontsize',14)
+ylabel('Distance / \sigma_{LJ}')
+set(gca, 'FontSize',15);
+ylim([0, 6])
+xlabel('Time (fs)')
+leg = legend('r_{AB}','location','eastoutside','numcolumns',1,'fontsize',16);
+set(leg.BoxFace, 'ColorType','truecoloralpha', 'ColorData',uint8(255*[1;1;1;.5]));
+leg.LineWidth = 1;
+leg.EdgeColor = '[0.8 0.8 0.8]';
+linkaxes([ax1,ax2],'x');
+xlim([0, max(tvec)]);
+set(gca,'linewidth',1)
+
+xticklabels(ax1,{})
+t.TileSpacing = 'loose';
+t.Padding = 'loose';
