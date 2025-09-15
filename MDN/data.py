@@ -30,13 +30,10 @@ def preprocessing(data, test_size=0.3, include_b=False):
         b_train = train['b'].values[..., np.newaxis]
         b_test = test['b'].values[..., np.newaxis]
         
-        print(f"b_train size: {b_train.shape}, b_test size: {b_test.shape}")
-        print(f"x_train size before: {x_train.shape}, x_test size before: {x_test.shape}")
-        
+        # Append impact parameter to input features
         x_train = np.hstack((x_train, b_train))
         x_test = np.hstack((x_test, b_test))
         
-        print(f"x_train size after: {x_train.shape}, x_test size after: {x_test.shape}")    
     return x_train, y_train, x_test, y_test
 
 # Compute new (dimensionless) energies
@@ -63,3 +60,18 @@ def ratio_translational(df, col, tot_energy):
 # epsilon_r1 = E_r1 / (E_r1 + E_r2)
 def ratio_rotational(df, col1, col2):
     return df[col1].values / (df[col1].values + df[col2].values)
+
+def inverse_translation(x, y):
+    E_tr = sigmoid(x[...,1])*np.exp(x[...,0])
+    E_trp = sigmoid(y[...,0])*np.exp(x[...,0])
+    return E_tr, E_trp
+
+def inverse_rotation_A(x, y):
+    Er_A = (1-sigmoid(x[...,1]))*sigmoid(x[...,2])*np.exp(x[...,0])
+    Er_Ap = (1-sigmoid(y[...,0]))*sigmoid(y[...,1])*np.exp(x[...,0])
+    return Er_A, Er_Ap
+
+def inverse_rotation_B(x, y):
+    Er_B = (1-sigmoid(x[...,1]))*(1-sigmoid(x[...,2]))*np.exp(x[...,0])
+    Er_Bp = (1-sigmoid(y[...,0]))*(1-sigmoid(y[...,1]))*np.exp(x[...,0])
+    return Er_B, Er_Bp
