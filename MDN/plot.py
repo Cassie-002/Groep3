@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import gaussian_kde
 
 from utils import dscatter, regline, density_kernel
 
@@ -12,8 +13,7 @@ def plot_loss(history):
     plt.legend()
     plt.grid(False)
     plt.show()
-    
-    
+       
 def plot_scatter(x, y, intercept=False, plot_regline=True, title='', xlabel='', ylabel='', 
                      xlim=None, ylim=None, s=10, return_params=False):
     if xlim is None:
@@ -54,3 +54,22 @@ def plot_density(arr, xlim=None, ylim=None, xlabel='', ylabel='', title=''):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
+    
+def plot_pdf(x, y, xlim=None, ylim=None, xlabel='', ylabel='', title='', label='', legend=False):   
+    xi = np.linspace(x.min(), x.max(), 100)
+    dist = gaussian_kde(y)(xi)
+    
+    plt.plot(xi, dist, label=label)
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    
+    # Format plot
+    if xlim is not None:
+        plt.xlim(xlim)
+    if ylim is not None:
+        plt.ylim(ylim)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    
+    if legend:
+        plt.legend()

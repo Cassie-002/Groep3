@@ -3,7 +3,7 @@ import argparse
 from model import load_model
 from data import load_data, preprocessing, inverse_rotation_A, inverse_rotation_B, inverse_translation
 from utils import dscatter, regline, relative_error, density_kernel, combine_pre_post
-from plot import plot_scatter, plot_density
+from plot import plot_scatter, plot_density, plot_pdf
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument('--plot-density', action='store_true', help='Plot density estimation')
     parser.add_argument('--marginals', action='store_true', help='Plot marginal distributions')
     parser.add_argument('--evaluate', action='store_true', help='Evaluate model on test set')
+    parser.add_argument('--pdf', action='store_true', help='Plot pdf estimation')
     return parser.parse_args()
 
 def main():
@@ -93,6 +94,54 @@ def main():
         print(f"  eps_t: relative difference: {relative_error(CTC_t_slope, MDN_t_slope)*100:.2f}%")
         print(f"  eps_r: relative difference: {relative_error(CTC_r_slope, MDN_r_slope)*100:.2f}%\n")
         print("-" * 40)
+    
+    # Plot pdf for MDN and CTC (Figure 4.8)
+    if args.pdf:
+        plt.figure(figsize=[9,4])
+        
+        ## Translational energy
+        # MDN
+        plt.subplot(1,3,1)
+        E_t, E_tp_MDN = inverse_translation(x_test, y_pred)
+        plot_pdf(E_t, E_tp_MDN, label='MDN')
+        # CTC
+        E_t, E_tp_CTC = inverse_translation(x_test, y_test)
+        plot_pdf(E_t, E_tp_CTC, label='CTC', 
+                    legend=True,
+                    xlabel="Etr/kb (K)",
+                    ylabel="f(Etr'/kb)",
+                    title='Translational energy distribution',
+                    xlim=(0, 6000))
+        ## Rotational energy A
+        # MDN
+        plt.subplot(1,3,2)
+        E_rA, E_rAp_MDN = inverse_rotation_A(x_test, y_pred)
+        plot_pdf(E_rA, E_rAp_MDN, label='MDN')
+        # CTC
+        E_rA, E_rAp_CTC = inverse_rotation_A(x_test, y_test)
+        plot_pdf(E_rA, E_rAp_CTC, label='CTC',
+                    legend=True,
+                    xlabel="Er_A/kb (K)",
+                    ylabel="f(Er_A'/kb)",
+                    title='Rotational energy A distribution',
+                    xlim=(0, 3000))
+        
+        ## Rotational energy B
+        plt.subplot(1,3,3)
+        # MDN   
+        E_rB, E_rBp_MDN = inverse_rotation_B(x_test, y_pred)
+        plot_pdf(E_rB, E_rBp_MDN, label='MDN')
+        # CTC
+        E_rB, E_rBp_CTC = inverse_rotation_B(x_test, y_test)
+        plot_pdf(E_rB, E_rBp_CTC, label='CTC',
+                    legend=True,
+                    xlabel="Er_B/kb (K)",
+                    ylabel="f(Er_B'/kb)",
+                    title='Rotational energy B distribution',
+                    xlim=(0, 3000))
+
+        plt.tight_layout()
+        plt.show()
     
     # MDN vs CTC energy scatter plots 
     if args.E_scatter:
