@@ -2,7 +2,7 @@ import os
 import argparse
 from model import load_model
 from data import load_data, preprocessing, inverse_rotation_A, inverse_rotation_B, inverse_translation
-from utils import dscatter, regline, relative_error
+from utils import dscatter, regline, relative_error, density_kernel
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -170,8 +170,8 @@ def main():
         plt.tight_layout()
         plt.show()
     
+    # Calculate correlation coefficients
     if args.correlation:
-        # Calculate correlation coefficients
         CTC_t_corr = np.corrcoef(CTC_t[:,0], y=CTC_t[:,1])[0,1]
         MDN_t_corr = np.corrcoef(MDN_t[:,0], y=MDN_t[:,1])[0,1]
         CTC_r_corr = np.corrcoef(CTC_r[:,0], y=CTC_r[:,1])[0,1]
@@ -184,6 +184,7 @@ def main():
         print(f"    Relative difference: {relative_error(CTC_r_corr, MDN_r_corr)*100:.2f}%\n")
         print("-" * 40)
     
+    # Procrustes analysis
     if args.procrustes:
         _, _, disparity_t = procrustes(CTC_t, MDN_t)
         _, _, disparity_r = procrustes(CTC_r, MDN_r)
@@ -193,7 +194,50 @@ def main():
         print(f"  eps_t disparity: {disparity_t}")
         print(f"  eps_r disparity: {disparity_r}\n")
         print("-" * 40)
-    
+
+    # Plot density estimations
+    if args.plot_density:
+        plt.figure(figsize=(6,6))
+
+        # Density distribution of eps_t
+        plt.subplot(2,2,1)
+        Z_MDN_t, xmin, xmax, ymin, ymax = density_kernel(MDN_t)
+        plt.imshow(np.rot90(Z_MDN_t), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+        plt.xlim(-4.8, 4.8)
+        plt.ylim(-4.8, 4.8)
+        plt.xlabel(r"$\varepsilon_{t}^{(p)}$")
+        plt.ylabel(r"$\varepsilon_{t}'^{(p)}$")
+        plt.title('MDN')
+
+        plt.subplot(2,2,2)
+        Z_CTC_t, xmin, xmax, ymin, ymax = density_kernel(CTC_t)
+        plt.imshow(np.rot90(Z_CTC_t), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+        plt.xlim(-4.8, 4.8)
+        plt.ylim(-4.8, 4.8)
+        plt.xlabel(r"$\varepsilon_{t}^{(p)}$")
+        plt.ylabel(r"$\varepsilon_{t}'^{(p)}$")
+        plt.title('CTC')
+
+        # Density distribution of eps_r
+        plt.subplot(2,2,3)
+        Z_MDN_r, xmin, xmax, ymin, ymax = density_kernel(MDN_r)
+        plt.imshow(np.rot90(Z_MDN_r), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+        plt.xlim(-8, 8)
+        plt.ylim(-8, 8)
+        plt.xlabel(r"$\varepsilon_{r}^{(p)}$")
+        plt.ylabel(r"$\varepsilon_{r}'^{(p)}$")
+
+        plt.subplot(2,2,4)
+        Z_CTC_r, xmin, xmax, ymin, ymax = density_kernel(CTC_r)
+        plt.imshow(np.rot90(Z_CTC_r), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+        plt.xlim(-8, 8)
+        plt.ylim(-8, 8)
+        plt.xlabel(r"$\varepsilon_{r}^{(p)}$")
+        plt.ylabel(r"$\varepsilon_{r}'^{(p)}$")
+
+        plt.tight_layout()
+        plt.show()
+            
     if args.evaluate:        
         print(f"\n NLL: {model.evaluate(x_test, y_test)}")
 
