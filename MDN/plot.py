@@ -40,6 +40,11 @@ def plot_scatter(x, y, intercept=False, plot_regline=True, title='', xlabel='', 
         return slope, reg_intercept
 
 def plot_density(arr, xlim=None, ylim=None, xlabel='', ylabel='', title=''):
+    if xlim is None:
+        xlim = (arr[:,0].min(), arr[:,0].max())
+    if ylim is None:
+        ylim = (arr[:,1].min(), arr[:,1].max())
+    
     dist, xmin, xmax, ymin, ymax = density_kernel(arr)
     plt.imshow(np.rot90(dist), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
     
