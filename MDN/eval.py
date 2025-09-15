@@ -6,6 +6,8 @@ from utils import dscatter, regline, relative_error
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial import procrustes
+from scipy.stats import gaussian_kde, mannwhitneyu
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(ROOT_DIR, 'models')
@@ -97,8 +99,10 @@ def main():
         plt.show()
         
         # Print slopes of regression lines 
-        print(f"eps_t slope relative difference: {relative_error(CTC_t_slope, MDN_t_slope)*100:.2f}%")
-        print(f"eps_r slope relative difference: {relative_error(CTC_r_slope, MDN_r_slope)*100:.2f}%")
+        print("\n Slopes of regression lines (intercept=0):")
+        print(f"  eps_t: relative difference: {relative_error(CTC_t_slope, MDN_t_slope)*100:.2f}%")
+        print(f"  eps_r: relative difference: {relative_error(CTC_r_slope, MDN_r_slope)*100:.2f}%\n")
+        print("-" * 40)
     
     # MDN vs CTC energy scatter plots 
     if args.E_scatter:
@@ -165,10 +169,33 @@ def main():
 
         plt.tight_layout()
         plt.show()
+    
+    if args.correlation:
+        # Calculate correlation coefficients
+        CTC_t_corr = np.corrcoef(CTC_t[:,0], y=CTC_t[:,1])[0,1]
+        MDN_t_corr = np.corrcoef(MDN_t[:,0], y=MDN_t[:,1])[0,1]
+        CTC_r_corr = np.corrcoef(CTC_r[:,0], y=CTC_r[:,1])[0,1]
+        MDN_r_corr = np.corrcoef(MDN_r[:,0], y=MDN_r[:,1])[0,1]
         
+        print("\n Correlation coefficients:")
+        print(f"  eps_t: CTC = {CTC_t_corr:.4f}, MDN = {MDN_t_corr:.4f}")
+        print(f"    Relative difference: {relative_error(CTC_t_corr, MDN_t_corr)*100:.2f}%")
+        print(f"  eps_r: CTC = {CTC_r_corr:.4f}, MDN = {MDN_r_corr:.4f}")
+        print(f"    Relative difference: {relative_error(CTC_r_corr, MDN_r_corr)*100:.2f}%\n")
+        print("-" * 40)
+    
+    if args.procrustes:
+        _, _, disparity_t = procrustes(CTC_t, MDN_t)
+        _, _, disparity_r = procrustes(CTC_r, MDN_r)
+
+        # Compare spatial similarity of CTC and MDN scatter plots
+        print("\n Procrustes analysis:")
+        print(f"  eps_t disparity: {disparity_t}")
+        print(f"  eps_r disparity: {disparity_r}\n")
+        print("-" * 40)
     
     if args.evaluate:        
-        print(f"NLL: {model.evaluate(x_test, y_test)}")
+        print(f"\n NLL: {model.evaluate(x_test, y_test)}")
 
 if __name__ == "__main__":
     main()
