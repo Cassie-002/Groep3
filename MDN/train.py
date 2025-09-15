@@ -1,7 +1,7 @@
 import os
 import argparse
 from data import load_data, preprocessing
-from model import build_model
+from model import build_model, load_model
 from plot import plot_loss
 
 import tensorflow as tf
@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument('--test-size', type=float, default=0.3, help='Proportion of test data')
     parser.add_argument('--include-b', action='store_true', help='Include impact parameter in input features')
     parser.add_argument('--verbose', type=int, default=1, help='Verbosity level during training')
+    parser.add_argument('--save-best-only', action='store_true', help='Save only the best model weights')
     return parser.parse_args()
 
 def main():
@@ -50,10 +51,22 @@ def main():
     if args.show_loss:
         plot_loss(history)
     
-    if args.save_model:
+    if args.save_model or args.save_best_only:
         if not os.path.exists(MODEL_DIR):
             os.makedirs(MODEL_DIR)
-        mdn.save_weights(os.path.join(MODEL_DIR, 'mdn_weights.h5'))
+            
+        if args.save_best_only:
+            model_old = load_model(os.path.join(MODEL_DIR, 'mdn_weights.h5'), x_train, args.nr_gaussians, args.activation_function, args.nr_neurons)
+            
+            old_score = model_old.evaluate(x_test, y_test, verbose=1)
+            new_score = mdn.evaluate(x_test, y_test, verbose=1)
+            
+            if new_score < old_score:
+                print(f"New model improved from {old_score:.4f} to {new_score:.4f}. Saving new model.")
+                mdn.save_weights(os.path.join(MODEL_DIR, 'mdn_weights.h5'))
+        else:
+            mdn.save_weights(os.path.join(MODEL_DIR, 'mdn_weights.h5'))
+            print(f"Model weights saved to {os.path.join(MODEL_DIR, 'mdn_weights.h5')}")
 
 if __name__ == "__main__":
     main()
