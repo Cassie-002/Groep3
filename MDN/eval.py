@@ -3,7 +3,7 @@ import argparse
 from model import load_model
 from data import load_data, preprocessing, inverse_rotation_A, inverse_rotation_B, inverse_translation
 from utils import dscatter, regline, relative_error, density_kernel, combine_pre_post
-from plot import plot_eps_scatter
+from plot import plot_scatter
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,7 +52,7 @@ def main():
 
         # MDN eps_t
         plt.subplot(2,2,1)
-        MDN_t_slope, MDN_t_intercept = plot_eps_scatter(MDN_t[:,0], MDN_t[:,1], 
+        MDN_t_slope, MDN_t_intercept = plot_scatter(MDN_t[:,0], MDN_t[:,1], 
                             xlabel=r"$\varepsilon_{t}^{(p)}$", 
                             ylabel=r"$\varepsilon_{t}'^{(p)}$", 
                             xlim=(-4.8, 4.8), 
@@ -61,7 +61,7 @@ def main():
                             return_params=True)
         # CTC eps_t
         plt.subplot(2,2,2)
-        CTC_t_slope, CTC_t_intercept = plot_eps_scatter(CTC_t[:,0], CTC_t[:,1],             
+        CTC_t_slope, CTC_t_intercept = plot_scatter(CTC_t[:,0], CTC_t[:,1],             
                             xlabel=r"$\varepsilon_{t}^{(p)}$", 
                             ylabel=r"$\varepsilon_{t}'^{(p)}$", 
                             xlim=(-4.8, 4.8), 
@@ -70,7 +70,7 @@ def main():
                             return_params=True)
         # MDN eps_r
         plt.subplot(2,2,3)
-        MDN_r_slope, MDN_r_intercept = plot_eps_scatter(MDN_r[:,0], MDN_r[:,1], 
+        MDN_r_slope, MDN_r_intercept = plot_scatter(MDN_r[:,0], MDN_r[:,1], 
                             xlabel=r"$\varepsilon_{r}^{(p)}$", 
                             ylabel=r"$\varepsilon_{r}'^{(p)}$", 
                             xlim=(-8, 8), 
@@ -78,7 +78,7 @@ def main():
                             return_params=True)
         # CTC eps_r
         plt.subplot(2,2,4)
-        CTC_r_slope, CTC_r_intercept = plot_eps_scatter(CTC_r[:,0], CTC_r[:,1], 
+        CTC_r_slope, CTC_r_intercept = plot_scatter(CTC_r[:,0], CTC_r[:,1], 
                             xlabel=r"$\varepsilon_{r}^{(p)}$", 
                             ylabel=r"$\varepsilon_{r}'^{(p)}$", 
                             xlim=(-8, 8), 
@@ -99,63 +99,60 @@ def main():
         plt.figure(figsize=[6,8])
 
         ## Translational energy 
+        # MDN
         plt.subplot(3,2,1)
-        plt.title('MDN')
-        plt.xlabel("Etr (K)")
-        plt.ylabel("Etr' (K)")
-        plt.xlim(0, 6000)
-        plt.ylim(0, 10000)
         E_t, E_tp = inverse_translation(x_test, y_pred)
-        E_t, E_tp, E_r_dist = dscatter(E_t, E_tp)
-        plt.scatter(E_t, E_tp, c=E_r_dist, s=10)
-
+        plot_scatter(E_t, E_tp, 
+                     title='MDN', 
+                     xlabel="Etr/kb (K)", 
+                     ylabel="Etr'/kb (K)", 
+                     xlim=(0, 6000), 
+                     ylim=(0, 10000))
+        # CTC
         plt.subplot(3,2,2)
-        plt.title('CTC')
-        plt.xlabel("Etr (K)")
-        plt.ylabel("Etr' (K)")
-        plt.xlim(0, 6000)
-        plt.ylim(0, 10000)
         E_t, E_tp = inverse_translation(x_test, y_test)
-        E_t, E_tp, E_r_dist = dscatter(E_t, E_tp)
-        plt.scatter(E_t, E_tp, c=E_r_dist, s=10)
+        plot_scatter(E_t, E_tp, 
+                     title='CTC', 
+                     xlabel="Etr/kb (K)", 
+                     ylabel="Etr'/kb (K)", 
+                     xlim=(0, 6000), 
+                     ylim=(0, 10000))
 
         ## Rotational energies A
+        # MDN
         plt.subplot(3,2,3)
-        plt.xlabel("Er_A (K)")
-        plt.ylabel("Er_A' (K)")
-        plt.xlim(0, 3000)
-        plt.ylim(0, 6300)
         E_rA, E_rAp = inverse_rotation_A(x_test, y_pred)
-        E_rA, E_rAp, E_rA_dist = dscatter(E_rA, E_rAp)
-        plt.scatter(E_rA, E_rAp, c=E_rA_dist, s=10)
-
+        plot_scatter(E_rA, E_rAp, 
+                     xlabel="Er_A/kb (K)", 
+                     ylabel="Er_A'/kb (K)", 
+                     xlim=(0, 3000), 
+                     ylim=(0, 6300))
+        # CTC
         plt.subplot(3,2,4)
-        plt.xlabel("Er_A (K)")
-        plt.ylabel("Er_A' (K)")
-        plt.xlim(0, 3000)
-        plt.ylim(0, 6300)
         E_rA, E_rAp = inverse_rotation_A(x_test, y_test)
-        E_rA, E_rAp, E_rA_dist = dscatter(E_rA, E_rAp)
-        plt.scatter(E_rA, E_rAp, c=E_rA_dist, s=10)
-
+        plot_scatter(E_rA, E_rAp, 
+                     xlabel="Er_A/kb (K)", 
+                     ylabel="Er_A'/kb (K)", 
+                     xlim=(0, 3000), 
+                     ylim=(0, 6300))
+        
         ## Rotational energies B
+        # MDN
         plt.subplot(3,2,5)
-        plt.xlabel("Er_B (K)")
-        plt.ylabel("Er_B' (K)")
-        plt.xlim(0, 3000)
-        plt.ylim(0, 5500)
         E_rB, E_rBp = inverse_rotation_B(x_test, y_pred)
-        E_rB, E_rBp, E_rB_dist = dscatter(E_rB, E_rBp)
-        plt.scatter(E_rB, E_rBp, c=E_rB_dist, s=10)
-
+        plot_scatter(E_rB, E_rBp, 
+                     xlabel="Er_B/kb (K)", 
+                     ylabel="Er_B'/kb (K)", 
+                     xlim=(0, 3000), 
+                     ylim=(0, 5500))
+        # CTC
         plt.subplot(3,2,6)
-        plt.xlabel("Er_B (K)")
-        plt.ylabel("Er_B' (K)")
-        plt.xlim(0, 3000)
-        plt.ylim(0, 5500)
         E_rB, E_rBp = inverse_rotation_B(x_test, y_test)
-        E_rB, E_rBp, E_rB_dist = dscatter(E_rB, E_rBp)
-        plt.scatter(E_rB, E_rBp, c=E_rB_dist, s=10)
+        plot_scatter(E_rB, E_rBp, 
+                     xlabel="Er_B/kb (K)", 
+                     ylabel="Er_B'/kb (K)", 
+                     xlim=(0, 3000), 
+                     ylim=(0, 5500))
 
         plt.tight_layout()
         plt.show()
