@@ -47,7 +47,7 @@ def main():
     
     # Plot scatter plots for MDN and CTC 
     if args.eps_scatter:
-        plt.figure(figsize=[8,8])
+        plt.figure(figsize=[6,6])
 
         # MDN eps_t
         plt.subplot(2,2,1)
@@ -106,7 +106,7 @@ def main():
     
     # MDN vs CTC energy scatter plots 
     if args.E_scatter:
-        plt.figure(figsize=[8,9])
+        plt.figure(figsize=[6,8])
 
         ## Translational energy 
         plt.subplot(3,2,1)
@@ -237,6 +237,60 @@ def main():
 
         plt.tight_layout()
         plt.show()
+    
+    # Plot marginal distributions and perform statistical test
+    if args.marginals:
+        # Compute marginal distributions for posterior energies
+        Z_MDN_t, _, _, _, _ = density_kernel(MDN_t)
+        Z_CTC_t, xmin_t, xmax_t, _, _ = density_kernel(CTC_t)
+        Z_MDN_r, _, _, _, _ = density_kernel(MDN_r)
+        Z_CTC_r, xmin_r, xmax_r, _, _ = density_kernel(CTC_r)
+        
+        marginal_mdn_t = np.sum(Z_MDN_t, axis=0)
+        marginal_ctc_t = np.sum(Z_CTC_t, axis=0)
+        marginal_mdn_r = np.sum(Z_MDN_r, axis=0)
+        marginal_ctc_r = np.sum(Z_CTC_r, axis=0)
+
+        # Normalize the marginal distributions
+        x_axis_t = np.linspace(xmin_t, xmax_t, Z_MDN_t.shape[1])
+        x_axis_r = np.linspace(xmin_r, xmax_r, Z_MDN_r.shape[1])
+        marginal_mdn_t /= np.trapz(marginal_mdn_t, x_axis_t)
+        marginal_ctc_t /= np.trapz(marginal_ctc_t, x_axis_t)
+        marginal_mdn_r /= np.trapz(marginal_mdn_r, x_axis_r)
+        marginal_ctc_r /= np.trapz(marginal_ctc_r, x_axis_r)
+
+        plt.figure(figsize=(6,6))
+
+        plt.subplot(2,1,1)
+        plt.plot(x_axis_t, marginal_mdn_t, label='MDN')
+        plt.plot(x_axis_t, marginal_ctc_t, label='CTC')
+        plt.xlabel(r"$\varepsilon_{t}^{(p)}$")
+        plt.ylabel(r"p($\varepsilon_{t}'^{(p)}$)")
+        plt.xlim(xmin_t, xmax_t)
+        plt.title('Marginal distributions')
+        plt.legend()
+
+        plt.subplot(2,1,2)
+        plt.plot(x_axis_r, marginal_mdn_r, label='MDN')
+        plt.plot(x_axis_r, marginal_ctc_r, label='CTC')
+        plt.xlabel(r"$\varepsilon_{r}^{(p)}$")
+        plt.ylabel(r"p($\varepsilon_{r}'^{(p)}$)")
+        plt.xlim(xmin_r, xmax_r)
+        plt.legend()
+
+        plt.tight_layout()
+        plt.show()
+        
+        # Perform Mann-Whitney U test to compare distributions
+        U_t, p_t = mannwhitneyu(marginal_mdn_t, marginal_ctc_t)
+        U_r, p_r = mannwhitneyu(marginal_mdn_r, marginal_ctc_r)
+
+        print("\n Mann-Whitney U test:")
+        print(f"  U_t: {U_t}")
+        print("  Distribution is significantly different" if p_t < 0.05 else "  No significant difference in distribution")
+        print(f"  U_r: {U_r}")
+        print("  Distribution is significantly different" if p_r < 0.05 else "  No significant difference in distribution\n")
+        print("-" * 40)
             
     if args.evaluate:        
         print(f"\n NLL: {model.evaluate(x_test, y_test)}")
