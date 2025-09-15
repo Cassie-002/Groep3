@@ -2,7 +2,7 @@ import os
 import argparse
 from data import load_data, preprocessing
 from model import build_model
-from utils import plot_loss
+from plot import plot_loss
 
 import tensorflow as tf
 
