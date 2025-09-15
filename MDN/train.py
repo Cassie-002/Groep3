@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument('--save-model', action='store_true', help='Save the trained model weights')
     parser.add_argument('--test-size', type=float, default=0.3, help='Proportion of test data')
     parser.add_argument('--include-b', action='store_true', help='Include impact parameter in input features')
+    parser.add_argument('--verbose', type=int, default=1, help='Verbosity level during training')
     return parser.parse_args()
 
 def main():
@@ -32,7 +33,7 @@ def main():
         tf.keras.callbacks.EarlyStopping(
             monitor="val_loss",
             patience=args.patience,
-            verbose=1,
+            verbose=args.verbose,
             restore_best_weights=True
         )
     ]
@@ -42,7 +43,7 @@ def main():
     history = mdn.fit(x_train, 
                         y_train, 
                         epochs=args.epochs, 
-                        verbose=1,
+                        verbose=args.verbose,
                         validation_data=(x_test, y_test),
                         callbacks=CB)
 
