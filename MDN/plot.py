@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
-from utils import dscatter, regline
+import numpy as np
+
+from utils import dscatter, regline, density_kernel
 
 def plot_loss(history):
     plt.figure()
@@ -36,3 +38,14 @@ def plot_scatter(x, y, intercept=False, plot_regline=True, title='', xlabel='', 
 
     if return_params:
         return slope, reg_intercept
+
+def plot_density(arr, xlim=None, ylim=None, xlabel='', ylabel='', title=''):
+    dist, xmin, xmax, ymin, ymax = density_kernel(arr)
+    plt.imshow(np.rot90(dist), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
+    
+    # Format plot
+    plt.xlim(xlim)
+    plt.ylim(ylim)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)

@@ -3,7 +3,7 @@ import argparse
 from model import load_model
 from data import load_data, preprocessing, inverse_rotation_A, inverse_rotation_B, inverse_translation
 from utils import dscatter, regline, relative_error, density_kernel, combine_pre_post
-from plot import plot_scatter
+from plot import plot_scatter, plot_density
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -186,41 +186,39 @@ def main():
     if args.plot_density:
         plt.figure(figsize=(6,6))
 
-        # Density distribution of eps_t
+        ## Density distribution of eps_t
+        # MDN
         plt.subplot(2,2,1)
-        Z_MDN_t, xmin, xmax, ymin, ymax = density_kernel(MDN_t)
-        plt.imshow(np.rot90(Z_MDN_t), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
-        plt.xlim(-4.8, 4.8)
-        plt.ylim(-4.8, 4.8)
-        plt.xlabel(r"$\varepsilon_{t}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{t}'^{(p)}$")
-        plt.title('MDN')
-
+        plot_density(MDN_t, 
+                     xlim=(-4.8, 4.8), 
+                     ylim=(-4.8, 4.8),
+                     xlabel=r"$\varepsilon_{t}^{(p)}$", 
+                     ylabel=r"$\varepsilon_{t}'^{(p)}$", 
+                     title='MDN')
+        # CTC
         plt.subplot(2,2,2)
-        Z_CTC_t, xmin, xmax, ymin, ymax = density_kernel(CTC_t)
-        plt.imshow(np.rot90(Z_CTC_t), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
-        plt.xlim(-4.8, 4.8)
-        plt.ylim(-4.8, 4.8)
-        plt.xlabel(r"$\varepsilon_{t}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{t}'^{(p)}$")
-        plt.title('CTC')
+        plot_density(CTC_t, 
+                     xlim=(-4.8, 4.8), 
+                     ylim=(-4.8, 4.8),
+                     xlabel=r"$\varepsilon_{t}^{(p)}$", 
+                     ylabel=r"$\varepsilon_{t}'^{(p)}$", 
+                     title='CTC')
 
-        # Density distribution of eps_r
+        ## Density distribution of eps_r
+        # MDN
         plt.subplot(2,2,3)
-        Z_MDN_r, xmin, xmax, ymin, ymax = density_kernel(MDN_r)
-        plt.imshow(np.rot90(Z_MDN_r), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
-        plt.xlim(-8, 8)
-        plt.ylim(-8, 8)
-        plt.xlabel(r"$\varepsilon_{r}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{r}'^{(p)}$")
-
+        plot_density(MDN_r, 
+                     xlim=(-8, 8), 
+                     ylim=(-8, 8),
+                     xlabel=r"$\varepsilon_{r}^{(p)}$", 
+                     ylabel=r"$\varepsilon_{r}'^{(p)}$")
+        # CTC
         plt.subplot(2,2,4)
-        Z_CTC_r, xmin, xmax, ymin, ymax = density_kernel(CTC_r)
-        plt.imshow(np.rot90(Z_CTC_r), cmap=plt.cm.gist_earth_r, extent=[xmin, xmax, ymin, ymax])
-        plt.xlim(-8, 8)
-        plt.ylim(-8, 8)
-        plt.xlabel(r"$\varepsilon_{r}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{r}'^{(p)}$")
+        plot_density(CTC_r, 
+                     xlim=(-8, 8), 
+                     ylim=(-8, 8),
+                     xlabel=r"$\varepsilon_{r}^{(p)}$", 
+                     ylabel=r"$\varepsilon_{r}'^{(p)}$")
 
         plt.tight_layout()
         plt.show()
