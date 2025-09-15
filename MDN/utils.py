@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 
 def dscatter(x,y):
@@ -16,16 +15,6 @@ def sigmoid(x):
     z = np.exp(-x)
     sig = 1 / (1 + z)
     return sig
-
-def plot_loss(history):
-    plt.figure()
-    plt.plot(history.history['loss'], label='Loss')
-    plt.plot(history.history['val_loss'], label='Val loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid(False)
-    plt.show()
     
 def regline(x, y, intercept=True):
     if not intercept:
