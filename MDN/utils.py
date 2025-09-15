@@ -41,3 +41,23 @@ def regline(x, y, intercept=True):
 
 def relative_error(y_true, y_pred):
     return np.abs((y_true - y_pred) / y_true)
+
+def density_kernel(data):
+    """Performs a Gaussian kernel density estimation on 2D data.
+
+    Args:
+        data (Array-like)): First column is x values, second column is y values.
+
+    Returns:
+        Z (2D array): Density values on a grid.
+        xmin, xmax, ymin, ymax (float): Extents of the grid.
+    """
+    xmin, xmax = data[:, 0].min(), data[:, 0].max()
+    ymin, ymax = data[:, 1].min(), data[:, 1].max()
+
+    X, Y = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    positions = np.vstack([X.ravel(), Y.ravel()])
+    kernel = gaussian_kde(data.T)
+    Z = np.reshape(kernel(positions).T, X.shape)
+
+    return Z, xmin, xmax, ymin, ymax
