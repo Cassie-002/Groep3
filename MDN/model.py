@@ -6,7 +6,6 @@ tfd = tfp.distributions
 tfpl = tfp.layers
 
 def build_model(nr_gaussians=20, activation_function='relu', nr_neurons=8, learning_rate=1e-4):
-    
     event_shape = [2]
     num_components = nr_gaussians
     params_size = tfpl.MixtureSameFamily.params_size(num_components,
