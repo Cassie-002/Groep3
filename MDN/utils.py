@@ -61,3 +61,7 @@ def density_kernel(data):
     Z = np.reshape(kernel(positions).T, X.shape)
 
     return Z, xmin, xmax, ymin, ymax
+
+def combine_pre_post(x,y):
+    return np.vstack((x,y)).T
+

@@ -2,7 +2,7 @@ import os
 import argparse
 from model import load_model
 from data import load_data, preprocessing, inverse_rotation_A, inverse_rotation_B, inverse_translation
-from utils import dscatter, regline, relative_error, density_kernel
+from utils import dscatter, regline, relative_error, density_kernel, combine_pre_post
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,12 +39,12 @@ def main():
     # Make predictions
     y_pred = model.predict(x_test)
     
-     # Combine x_test and y_test for CTC and MDN
-    CTC_t = np.vstack((x_test[:,1], y_test[:,0])).T
-    MDN_t = np.vstack((x_test[:,1], y_pred[:,0])).T
-    CTC_r = np.vstack((x_test[:,2], y_test[:,1])).T
-    MDN_r = np.vstack((x_test[:,2], y_pred[:,1])).T
-    
+    # Combine x_test and y_test for CTC and MDN
+    CTC_t = combine_pre_post(x_test[:,1], y_test[:,0])
+    CTC_r = combine_pre_post(x_test[:,2], y_test[:,1])
+    MDN_t = combine_pre_post(x_test[:,1], y_pred[:,0])
+    MDN_r = combine_pre_post(x_test[:,2], y_pred[:,1])
+        
     # Plot scatter plots for MDN and CTC 
     if args.eps_scatter:
         plt.figure(figsize=[6,6])
