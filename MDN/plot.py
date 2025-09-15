@@ -12,7 +12,7 @@ def plot_loss(history):
     plt.show()
     
     
-def plot_eps_scatter(x, y, intercept=False, plot_regline=True, title='', xlabel='', ylabel='', 
+def plot_scatter(x, y, intercept=False, plot_regline=True, title='', xlabel='', ylabel='', 
                      xlim=None, ylim=None, s=10, return_params=False):
     if xlim is None:
         xlim = (x.min(), x.max())
