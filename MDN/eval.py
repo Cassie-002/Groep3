@@ -3,6 +3,7 @@ import argparse
 from model import load_model
 from data import load_data, preprocessing, inverse_rotation_A, inverse_rotation_B, inverse_translation
 from utils import dscatter, regline, relative_error, density_kernel, combine_pre_post
+from plot import plot_eps_scatter
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,56 +45,45 @@ def main():
     CTC_r = combine_pre_post(x_test[:,2], y_test[:,1])
     MDN_t = combine_pre_post(x_test[:,1], y_pred[:,0])
     MDN_r = combine_pre_post(x_test[:,2], y_pred[:,1])
-        
-    # Plot scatter plots for MDN and CTC 
+            
+    # Plot scatter plots for MDN and CTC (Figure 4.7)
     if args.eps_scatter:
         plt.figure(figsize=[6,6])
 
         # MDN eps_t
         plt.subplot(2,2,1)
-        eps_t, eps_tp, eps_t_mdn_dist = dscatter(MDN_t[:,0], MDN_t[:,1])
-        x, y, MDN_t_slope, MDN_t_intercept = regline(MDN_t[:,0], MDN_t[:,1], intercept=False)
-        plt.plot(x, y, 'r--')
-        plt.scatter(eps_t, eps_tp, c=eps_t_mdn_dist, s=10)
-        plt.xlabel(r"$\varepsilon_{t}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{t}'^{(p)}$")
-        plt.xlim(-4.8, 4.8)
-        plt.ylim(-4.8, 4.8)
-        plt.title('MDN')
-
+        MDN_t_slope, MDN_t_intercept = plot_eps_scatter(MDN_t[:,0], MDN_t[:,1], 
+                            xlabel=r"$\varepsilon_{t}^{(p)}$", 
+                            ylabel=r"$\varepsilon_{t}'^{(p)}$", 
+                            xlim=(-4.8, 4.8), 
+                            ylim=(-4.8, 4.8), 
+                            title='MDN', 
+                            return_params=True)
         # CTC eps_t
         plt.subplot(2,2,2)
-        eps_t, eps_tp, eps_t_ctc_dist = dscatter(CTC_t[:,0], CTC_t[:,1])
-        x, y, CTC_t_slope, CTC_t_intercept = regline(CTC_t[:,0], CTC_t[:,1], intercept=False)
-        plt.plot(x, y, 'r--')
-        plt.scatter(eps_t, eps_tp, c=eps_t_ctc_dist, s=10)
-        plt.xlabel(r"$\varepsilon_{t}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{t}'^{(p)}$")
-        plt.xlim(-4.8, 4.8)
-        plt.ylim(-4.8, 4.8)
-        plt.title('CTC')
-
+        CTC_t_slope, CTC_t_intercept = plot_eps_scatter(CTC_t[:,0], CTC_t[:,1],             
+                            xlabel=r"$\varepsilon_{t}^{(p)}$", 
+                            ylabel=r"$\varepsilon_{t}'^{(p)}$", 
+                            xlim=(-4.8, 4.8), 
+                            ylim=(-4.8, 4.8), 
+                            title='CTC', 
+                            return_params=True)
         # MDN eps_r
         plt.subplot(2,2,3)
-        eps_r, eps_rp, eps_r_mdn_dist = dscatter(MDN_r[:,0], MDN_r[:,1])
-        x, y, MDN_r_slope, MDN_r_intercept = regline(MDN_r[:,0], MDN_r[:,1], intercept=False)
-        plt.plot(x, y, 'r--')
-        plt.scatter(eps_r, eps_rp, c=eps_r_mdn_dist, s=10)
-        plt.xlabel(r"$\varepsilon_{r}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{r}'^{(p)}$")
-        plt.xlim(-8, 8)
-        plt.ylim(-8, 8)
-
+        MDN_r_slope, MDN_r_intercept = plot_eps_scatter(MDN_r[:,0], MDN_r[:,1], 
+                            xlabel=r"$\varepsilon_{r}^{(p)}$", 
+                            ylabel=r"$\varepsilon_{r}'^{(p)}$", 
+                            xlim=(-8, 8), 
+                            ylim=(-8, 8), 
+                            return_params=True)
         # CTC eps_r
         plt.subplot(2,2,4)
-        eps_r, eps_rp, eps_r_ctc_dist = dscatter(CTC_r[:,0], CTC_r[:,1])
-        x, y, CTC_r_slope, CTC_r_intercept = regline(CTC_r[:,0], CTC_r[:,1], intercept=False)
-        plt.plot(x, y, 'r--')
-        plt.scatter(eps_r, eps_rp, c=eps_r_ctc_dist, s=10)
-        plt.xlabel(r"$\varepsilon_{r}^{(p)}$")
-        plt.ylabel(r"$\varepsilon_{r}'^{(p)}$")
-        plt.xlim(-8, 8)
-        plt.ylim(-8, 8)
+        CTC_r_slope, CTC_r_intercept = plot_eps_scatter(CTC_r[:,0], CTC_r[:,1], 
+                            xlabel=r"$\varepsilon_{r}^{(p)}$", 
+                            ylabel=r"$\varepsilon_{r}'^{(p)}$", 
+                            xlim=(-8, 8), 
+                            ylim=(-8, 8), 
+                            return_params=True)
 
         plt.tight_layout()
         plt.show()
@@ -115,9 +105,9 @@ def main():
         plt.ylabel("Etr' (K)")
         plt.xlim(0, 6000)
         plt.ylim(0, 10000)
-        E_r, E_rp = inverse_translation(x_test, y_pred)
-        E_r, E_rp, E_r_dist = dscatter(E_r, E_rp)
-        plt.scatter(E_r, E_rp, c=E_r_dist, s=10)
+        E_t, E_tp = inverse_translation(x_test, y_pred)
+        E_t, E_tp, E_r_dist = dscatter(E_t, E_tp)
+        plt.scatter(E_t, E_tp, c=E_r_dist, s=10)
 
         plt.subplot(3,2,2)
         plt.title('CTC')
@@ -125,9 +115,9 @@ def main():
         plt.ylabel("Etr' (K)")
         plt.xlim(0, 6000)
         plt.ylim(0, 10000)
-        E_r, E_rp = inverse_translation(x_test, y_test)
-        E_r, E_rp, E_r_dist = dscatter(E_r, E_rp)
-        plt.scatter(E_r, E_rp, c=E_r_dist, s=10)
+        E_t, E_tp = inverse_translation(x_test, y_test)
+        E_t, E_tp, E_r_dist = dscatter(E_t, E_tp)
+        plt.scatter(E_t, E_tp, c=E_r_dist, s=10)
 
         ## Rotational energies A
         plt.subplot(3,2,3)
