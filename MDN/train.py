@@ -7,7 +7,7 @@ from utils import save_config, open_config
 
 import tensorflow as tf
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+tf.keras.backend.set_floatx('float64')
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(ROOT_DIR, 'models')
@@ -94,7 +94,7 @@ def main():
         else:
             save_config(config, config_path)
             mdn.save_weights(model_path)
-            print(f"Model weights saved to {os.path.join(MODEL_DIR, 'mdn_weights.h5')}")
+            print(f"Model weights saved to {os.path.join(model_path)}")
 
 if __name__ == "__main__":
     main()
