@@ -13,12 +13,12 @@ from scipy.stats import gaussian_kde, mannwhitneyu
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(ROOT_DIR, 'models')
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
+FIG_DIR = os.path.join(ROOT_DIR, 'figures')
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate MDN model")
     parser.add_argument('--eps-scatter', action='store_true', help='Show epsilon scatter plots')
     parser.add_argument('--E-scatter', action='store_true', help='Show energy scatter plots')
-    # parser.add_argument('--include-b', action='store_true', help='Include impact parameter in input features')
     parser.add_argument('--correlation', action='store_true', help='Print correlation')
     parser.add_argument('--procrustes', action='store_true', help='Print Procrustes disparity')
     parser.add_argument('--plot-density', action='store_true', help='Plot density estimation')
@@ -27,10 +27,15 @@ def parse_args():
     parser.add_argument('--pdf', action='store_true', help='Plot pdf estimation')
     parser.add_argument('--name', type=str, default='mdn', help='Name of the model')
     parser.add_argument('--data', type=str, default='collision_dataset.txt', help='Path to the dataset file')
+    parser.add_argument('--save-figures', action='store_true', help='Save figures instead of showing them.')
     return parser.parse_args()
 
 def main():
     args = parse_args()
+    
+    # Initialize directory
+    if args.save_figures and not os.path.exists(FIG_DIR):
+        os.makedirs(FIG_DIR)
     
     model_path = os.path.join(MODEL_DIR, f"{args.name}.h5")
     config_path = os.path.join(MODEL_DIR, f"{args.name}_config.json")
@@ -93,7 +98,12 @@ def main():
                             return_params=True)
 
         plt.tight_layout()
-        plt.show()
+        
+        if args.save_figures:
+            fig_name = args.name + '_eps_scatter.png'
+            plt.savefig(os.path.join(FIG_DIR, fig_name), dpi=300)
+        else:   
+            plt.show()
         
         # Print slopes of regression lines 
         print("\n Slopes of regression lines (intercept=0):")
@@ -109,45 +119,53 @@ def main():
         # MDN
         plt.subplot(1,3,1)
         E_t, E_tp_MDN = inverse_translation(x_test, y_pred)
-        plot_pdf(E_t, E_tp_MDN, label='MDN')
+        plot_pdf(E_tp_MDN, label='MDN')
         # CTC
         E_t, E_tp_CTC = inverse_translation(x_test, y_test)
-        plot_pdf(E_t, E_tp_CTC, label='CTC', 
+        plot_pdf(E_tp_CTC, label='CTC', 
                     legend=True,
-                    xlabel="Etr/kb (K)",
-                    ylabel="f(Etr'/kb)",
+                    xlabel=r"$E_{tr}'/k_b$ (K)",
+                    ylabel=r"$f(E_{tr}'/k_b)$",
                     title='Translational energy distribution',
-                    xlim=(0, 6000))
+                    xlim=(0, 4000)
+                    )
         ## Rotational energy A
         # MDN
         plt.subplot(1,3,2)
         E_rA, E_rAp_MDN = inverse_rotation_A(x_test, y_pred)
-        plot_pdf(E_rA, E_rAp_MDN, label='MDN')
+        plot_pdf(E_rAp_MDN, label='MDN')
         # CTC
         E_rA, E_rAp_CTC = inverse_rotation_A(x_test, y_test)
-        plot_pdf(E_rA, E_rAp_CTC, label='CTC',
+        plot_pdf(E_rAp_CTC, label='CTC',
                     legend=True,
-                    xlabel="Er_A/kb (K)",
-                    ylabel="f(Er_A'/kb)",
+                    xlabel=r"$E_{r,A}'/k_b$ (K)",
+                    ylabel=r"$f(E_{r,A}'/kb)$",
                     title='Rotational energy A distribution',
-                    xlim=(0, 3000))
+                    xlim=(0, 3000)
+                    )
         
         ## Rotational energy B
         plt.subplot(1,3,3)
         # MDN   
         E_rB, E_rBp_MDN = inverse_rotation_B(x_test, y_pred)
-        plot_pdf(E_rB, E_rBp_MDN, label='MDN')
+        plot_pdf(E_rBp_MDN, label='MDN')
         # CTC
         E_rB, E_rBp_CTC = inverse_rotation_B(x_test, y_test)
-        plot_pdf(E_rB, E_rBp_CTC, label='CTC',
+        plot_pdf(E_rBp_CTC, label='CTC',
                     legend=True,
-                    xlabel="Er_B/kb (K)",
-                    ylabel="f(Er_B'/kb)",
+                    xlabel=r"$E_{r,B}'/k_b$ (K)",
+                    ylabel=r"$f(E_{r,B}'/k_b)$",
                     title='Rotational energy B distribution',
-                    xlim=(0, 3000))
+                    xlim=(0, 3000)
+                    )
 
         plt.tight_layout()
-        plt.show()
+        
+        if args.save_figures:
+            fig_name = args.name + '_pdf_comparison.png'
+            plt.savefig(os.path.join(FIG_DIR, fig_name), dpi=300)
+        else:
+            plt.show()
     
     # MDN vs CTC energy scatter plots 
     if args.E_scatter:
@@ -159,8 +177,8 @@ def main():
         E_t, E_tp = inverse_translation(x_test, y_pred)
         plot_scatter(E_t, E_tp, 
                      title='MDN', 
-                     xlabel="Etr/kb (K)", 
-                     ylabel="Etr'/kb (K)", 
+                     xlabel=r"$E_{tr}/k_b$ (K)", 
+                     ylabel=r"$E_{tr}'/k_b$ (K)", 
                      xlim=(0, 6000), 
                      ylim=(0, 10000))
         # CTC
@@ -168,8 +186,8 @@ def main():
         E_t, E_tp = inverse_translation(x_test, y_test)
         plot_scatter(E_t, E_tp, 
                      title='CTC', 
-                     xlabel="Etr/kb (K)", 
-                     ylabel="Etr'/kb (K)", 
+                     xlabel=r"$E_{tr}/k_b$ (K)", 
+                     ylabel=r"$E_{tr}'/k_b$ (K)", 
                      xlim=(0, 6000), 
                      ylim=(0, 10000))
 
@@ -178,16 +196,16 @@ def main():
         plt.subplot(3,2,3)
         E_rA, E_rAp = inverse_rotation_A(x_test, y_pred)
         plot_scatter(E_rA, E_rAp, 
-                     xlabel="Er_A/kb (K)", 
-                     ylabel="Er_A'/kb (K)", 
+                     xlabel=r"$E_{r,A}/k_b$ (K)", 
+                     ylabel=r"$E_{r,A}'/k_b$ (K)", 
                      xlim=(0, 3000), 
                      ylim=(0, 6300))
         # CTC
         plt.subplot(3,2,4)
         E_rA, E_rAp = inverse_rotation_A(x_test, y_test)
         plot_scatter(E_rA, E_rAp, 
-                     xlabel="Er_A/kb (K)", 
-                     ylabel="Er_A'/kb (K)", 
+                     xlabel=r"$E_{r,A}/k_b$ (K)", 
+                     ylabel=r"$E_{r,A}'/k_b$ (K)", 
                      xlim=(0, 3000), 
                      ylim=(0, 6300))
         
@@ -196,21 +214,26 @@ def main():
         plt.subplot(3,2,5)
         E_rB, E_rBp = inverse_rotation_B(x_test, y_pred)
         plot_scatter(E_rB, E_rBp, 
-                     xlabel="Er_B/kb (K)", 
-                     ylabel="Er_B'/kb (K)", 
+                     xlabel=r"$E_{r,B}/k_b$ (K)", 
+                     ylabel=r"$E_{r,B}'/k_b$ (K)", 
                      xlim=(0, 3000), 
                      ylim=(0, 5500))
         # CTC
         plt.subplot(3,2,6)
         E_rB, E_rBp = inverse_rotation_B(x_test, y_test)
         plot_scatter(E_rB, E_rBp, 
-                     xlabel="Er_B/kb (K)", 
-                     ylabel="Er_B'/kb (K)", 
+                     xlabel=r"$E_{r,B}/k_b$ (K)", 
+                     ylabel=r"$E_{r,B}'/k_b$ (K)", 
                      xlim=(0, 3000), 
                      ylim=(0, 5500))
 
         plt.tight_layout()
-        plt.show()
+        
+        if args.save_figures:
+            fig_name = args.name + '_E_scatter.png'
+            plt.savefig(os.path.join(FIG_DIR, fig_name), dpi=300)
+        else:
+            plt.show()
     
     # Calculate correlation coefficients
     if args.correlation:
@@ -276,7 +299,12 @@ def main():
                      ylabel=r"$\varepsilon_{r}'^{(p)}$")
 
         plt.tight_layout()
-        plt.show()
+        
+        if args.save_figures:
+            fig_name = args.name + '_eps_density.png'
+            plt.savefig(os.path.join(FIG_DIR, fig_name), dpi=300)
+        else:
+            plt.show()
     
     # Plot marginal distributions and perform statistical test
     if args.marginals:
@@ -294,10 +322,10 @@ def main():
         # Normalize the marginal distributions
         x_axis_t = np.linspace(xmin_t, xmax_t, Z_MDN_t.shape[1])
         x_axis_r = np.linspace(xmin_r, xmax_r, Z_MDN_r.shape[1])
-        marginal_mdn_t /= np.trapz(marginal_mdn_t, x_axis_t)
-        marginal_ctc_t /= np.trapz(marginal_ctc_t, x_axis_t)
-        marginal_mdn_r /= np.trapz(marginal_mdn_r, x_axis_r)
-        marginal_ctc_r /= np.trapz(marginal_ctc_r, x_axis_r)
+        # marginal_mdn_t /= np.trapz(marginal_mdn_t, x_axis_t)
+        # marginal_ctc_t /= np.trapz(marginal_ctc_t, x_axis_t)
+        # marginal_mdn_r /= np.trapz(marginal_mdn_r, x_axis_r)
+        # marginal_ctc_r /= np.trapz(marginal_ctc_r, x_axis_r)
 
         plt.figure(figsize=(6,6))
 
@@ -319,7 +347,12 @@ def main():
         plt.legend()
 
         plt.tight_layout()
-        plt.show()
+        
+        if args.save_figures:
+            fig_name = args.name + '_marginal_distributions.png'
+            plt.savefig(os.path.join(FIG_DIR, fig_name), dpi=300)
+        else:
+            plt.show()
         
         # Perform Mann-Whitney U test to compare distributions
         U_t, p_t = mannwhitneyu(marginal_mdn_t, marginal_ctc_t)
