@@ -1,6 +1,8 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+from utils import open_config
+
 tfb = tfp.bijectors
 tfd = tfp.distributions
 tfpl = tfp.layers
@@ -23,8 +25,9 @@ def build_model(nr_gaussians=20, activation_function='relu', nr_neurons=8, learn
 
     return model
  
-def load_model(path, x, nr_gaussians=20, activation_function='relu', nr_neurons=8):
-   model = build_model(nr_gaussians, activation_function, nr_neurons)
+def load_model(model_path, config_path, x):
+   config = open_config(config_path)
+   model = build_model(config.get("nr_gaussians"), config.get("activation_function"), config.get("nr_neurons"))
    model(x[:1])  # Initialize model
-   model.load_weights(path)
+   model.load_weights(model_path)
    return model
