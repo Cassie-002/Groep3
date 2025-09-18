@@ -13,7 +13,7 @@ Use `train.py` to train the MDN model on the dataset.
 
 ### Example usage
 ```bash
-python train.py --epochs 1000 --nr_gaussians 20 --nr_neurons 8 --activation_function relu --show-loss --save-model --name mymodel --data data/collision_dataset.txt
+python train.py --epochs 1000 --nr_gaussians 20 --nr_neurons 8 --activation_function relu --show-loss --save-model --name mymodel --data collision_dataset.txt
 ```
 
 ### Arguments
@@ -39,7 +39,7 @@ Use `eval.py` to evaluate the trained model and generate plots/statistics.
 
 ### Example usage
 ```bash
-python eval.py --eps-scatter --E-scatter --plot-density --marginals --correlation --procrustes --pdf --evaluate --name mymodel --data data/collision_dataset.txt --save-figures
+python eval.py --eps-scatter --E-scatter --plot-density --marginals --correlation --procrustes --pdf --evaluate --name mymodel --data collision_dataset.txt --save-figures
 ```
 
 ### Arguments
