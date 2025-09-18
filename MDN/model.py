@@ -3,6 +3,8 @@ import tensorflow_probability as tfp
 
 from utils import open_config
 
+tf.keras.backend.set_floatx('float64')
+
 tfb = tfp.bijectors
 tfd = tfp.distributions
 tfpl = tfp.layers
