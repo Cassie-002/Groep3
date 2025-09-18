@@ -2,7 +2,7 @@ import os
 import argparse
 from model import load_model
 from data import load_data, preprocessing, inverse_rotation_A, inverse_rotation_B, inverse_translation
-from utils import dscatter, regline, relative_error, density_kernel, combine_pre_post
+from utils import relative_error, density_kernel, combine_pre_post, open_config
 from plot import plot_scatter, plot_density, plot_pdf
 
 import matplotlib.pyplot as plt
@@ -12,31 +12,37 @@ from scipy.stats import gaussian_kde, mannwhitneyu
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(ROOT_DIR, 'models')
-
+DATA_DIR = os.path.join(ROOT_DIR, 'data')
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate MDN model")
     parser.add_argument('--eps-scatter', action='store_true', help='Show epsilon scatter plots')
     parser.add_argument('--E-scatter', action='store_true', help='Show energy scatter plots')
-    parser.add_argument('--include-b', action='store_true', help='Include impact parameter in input features')
+    # parser.add_argument('--include-b', action='store_true', help='Include impact parameter in input features')
     parser.add_argument('--correlation', action='store_true', help='Print correlation')
     parser.add_argument('--procrustes', action='store_true', help='Print Procrustes disparity')
     parser.add_argument('--plot-density', action='store_true', help='Plot density estimation')
     parser.add_argument('--marginals', action='store_true', help='Plot marginal distributions')
     parser.add_argument('--evaluate', action='store_true', help='Evaluate model on test set')
     parser.add_argument('--pdf', action='store_true', help='Plot pdf estimation')
+    parser.add_argument('--name', type=str, default='mdn', help='Name of the model')
+    parser.add_argument('--data', type=str, default='collision_dataset.txt', help='Path to the dataset file')
     return parser.parse_args()
 
 def main():
     args = parse_args()
     
-    # Load and preprocess data
-    data = load_data('collision_dataset.txt')
-    _, _, x_test, y_test = preprocessing(data, test_size=0.3, include_b=args.include_b)
+    model_path = os.path.join(MODEL_DIR, f"{args.name}.h5")
+    config_path = os.path.join(MODEL_DIR, f"{args.name}_config.json")
     
-    # Load model
-    path = os.path.join(MODEL_DIR, 'mdn_weights.h5')
-    model = load_model(path, x_test)
+    config = open_config(config_path)
+    
+    # Load and preprocess data
+    data = load_data(args.data)
+    _, _, x_test, y_test = preprocessing(data, test_size=config.get("test_size"), include_b=config.get("include_b"))
+    
+    # Load model    
+    model = load_model(model_path, config_path, x_test)
     
     # Make predictions
     y_pred = model.predict(x_test)
