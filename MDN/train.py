@@ -3,8 +3,11 @@ import argparse
 from data import load_data, preprocessing
 from model import build_model
 from plot import plot_loss
+from utils import save_config, open_config
 
 import tensorflow as tf
+
+tf.keras.backend.set_floatx('float64')
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(ROOT_DIR, 'models')
@@ -21,12 +24,15 @@ def parse_args():
     parser.add_argument('--test-size', type=float, default=0.3, help='Proportion of test data')
     parser.add_argument('--include-b', action='store_true', help='Include impact parameter in input features')
     parser.add_argument('--verbose', type=int, default=1, help='Verbosity level during training')
+    parser.add_argument('--save-best-only', action='store_true', help='Save only the best model weights')
+    parser.add_argument('--name', type=str, default='mdn', help='Name of the model')
+    parser.add_argument('--data', type=str, default='collision_dataset.txt', help='Path to the dataset file')
     return parser.parse_args()
 
 def main():
     args = parse_args()
     
-    data = load_data('collision_dataset.txt')
+    data = load_data(args.data)
     x_train, y_train, x_test, y_test = preprocessing(data, test_size=args.test_size, include_b=args.include_b)
 
     CB = [
@@ -50,10 +56,45 @@ def main():
     if args.show_loss:
         plot_loss(history)
     
-    if args.save_model:
+    if args.save_model or args.save_best_only:
         if not os.path.exists(MODEL_DIR):
             os.makedirs(MODEL_DIR)
-        mdn.save_weights(os.path.join(MODEL_DIR, 'mdn_weights.h5'))
+
+        model_path = os.path.join(MODEL_DIR, f"{args.name}.h5")
+        config_path = os.path.join(MODEL_DIR, f"{args.name}_config.json")
+
+        score = mdn.evaluate(x_test, y_test, verbose=0)
+        config = {
+                "nr_gaussians": args.nr_gaussians,
+                "activation_function": args.activation_function,
+                "nr_neurons": args.nr_neurons,
+                "include_b": args.include_b,
+                "epochs": args.epochs,
+                "patience": args.patience,
+                "data": args.data,
+                "test_size": args.test_size,
+                "final_loss": score
+            }
+               
+        if args.save_best_only:
+            if not os.path.exists(model_path):
+                save_config(config, config_path)
+                mdn.save_weights(model_path)
+                print(f"No existing model found. Model weights saved to {model_path}")
+            else:               
+                old_config = open_config(config_path)
+                old_score = old_config.get("final_loss")
+                
+                if score < old_score:
+                    save_config(config, config_path)
+                    mdn.save_weights(model_path)
+                    print(f"New model improved from {old_score:.4f} to {score:.4f}. Saving new model.")
+                else:
+                    print(f"New model did not improve (old: {old_score:.4f}, new: {score:.4f}). Not saving.")
+        else:
+            save_config(config, config_path)
+            mdn.save_weights(model_path)
+            print(f"Model weights saved to {os.path.join(model_path)}")
 
 if __name__ == "__main__":
     main()

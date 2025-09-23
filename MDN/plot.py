@@ -55,8 +55,8 @@ def plot_density(arr, xlim=None, ylim=None, xlabel='', ylabel='', title=''):
     plt.ylabel(ylabel)
     plt.title(title)
     
-def plot_pdf(x, y, xlim=None, ylim=None, xlabel='', ylabel='', title='', label='', legend=False):   
-    xi = np.linspace(x.min(), x.max(), 100)
+def plot_pdf(y, xlim=None, ylim=None, xlabel='', ylabel='', title='', label='', legend=False):   
+    xi = np.linspace(y.min(), y.max(), 100)
     dist = gaussian_kde(y)(xi)
     
     plt.plot(xi, dist, label=label)

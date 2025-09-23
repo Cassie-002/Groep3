@@ -1,5 +1,14 @@
 import numpy as np
+import json
 from scipy.stats import gaussian_kde
+
+def save_config(config, path):
+    with open(path, 'w') as f:
+        json.dump(config, f, indent=4)
+        
+def open_config(path):
+    with open(path, 'r') as f:
+        return json.load(f)
 
 def dscatter(x,y):
     xy = np.vstack([x,y])
