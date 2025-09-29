@@ -7,7 +7,8 @@ from scipy.stats import norm
 import os
 import csv
 
-import tf_keras
+# import tf_keras
+import tensorflow.keras as keras
 import tensorflow_probability as tfp
 from datetime import datetime
 
@@ -94,13 +95,13 @@ class DSMCSimulation:
             model_type = "BL"
         
         # Name the folder according to DSMC parameters
-        self.folder_name = f"logs/dsmc_{model_type}_N:{self.n_particles}_steps:{self.n_steps}_Ttr:{self.T_tr_initial}_Trot:{self.T_rot_initial}_Zr:{self.Z_r}_domain:{self.domain_size}_cells{self.n_cells}_sigma{self.sigma_collision}"
+        self.folder_name = f"logs/dsmc_{model_type}_N{self.n_particles}_steps{self.n_steps}_Ttr{self.T_tr_initial}_Trot{self.T_rot_initial}_Zr{self.Z_r}_domain{self.domain_size}_cells{self.n_cells}_sigma{self.sigma_collision}"
         
         # Ensure that the directory exists
         os.makedirs(self.folder_name, exist_ok=True)
         
         # Open the log file for writing
-        self.log_file = open(self.folder_name + "/simulation_data_"  + datetime.now().strftime("%d_%m_%Y-%H:%M:%S") + ".csv" , 'w', newline='')
+        self.log_file = open(self.folder_name + "/simulation_data_"  + datetime.now().strftime("%d_%m_%Y-%H_%M_%S") + ".csv" , 'w', newline='')
         self.log_writer = csv.writer(self.log_file)
         
         # Write headers
@@ -494,13 +495,13 @@ if __name__ == "__main__":
 
             negloglik = lambda y, p_y: -p_y.log_prob(y)
 
-            model = tf_keras.models.Sequential([
-                tf_keras.layers.Dense(NNEURONS, activation=ACTIVATION),
-                tf_keras.layers.Dense(params_size, activation=None),
+            model = keras.models.Sequential([
+                keras.layers.Dense(NNEURONS, activation=ACTIVATION),
+                keras.layers.Dense(params_size, activation=None),
                 tfpl.MixtureSameFamily(num_components, tfpl.IndependentNormal(event_shape)),
             ])
             
-            model.compile(optimizer=tf_keras.optimizers.Adam(learning_rate = 1e-4), loss=negloglik)
+            model.compile(optimizer=keras.optimizers.Adam(learning_rate = 1e-4), loss=negloglik)
 
             return model
 
