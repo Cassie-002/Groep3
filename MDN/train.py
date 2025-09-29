@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument('--name', type=str, default='mdn', help='Name of the model')
     parser.add_argument('--data', type=str, default='collision_dataset.txt', help='Path to the dataset file')
     parser.add_argument('--symmetrize', action='store_true', help='Use symmetrized MDN architecture')
+
     return parser.parse_args()
 
 def main():
