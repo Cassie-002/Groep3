@@ -27,6 +27,8 @@ def parse_args():
     parser.add_argument('--save-best-only', action='store_true', help='Save only the best model weights')
     parser.add_argument('--name', type=str, default='mdn', help='Name of the model')
     parser.add_argument('--data', type=str, default='collision_dataset.txt', help='Path to the dataset file')
+    parser.add_argument('--symmetrize', action='store_true', help='Use symmetrized MDN architecture')
+
     return parser.parse_args()
 
 def main():
@@ -44,7 +46,7 @@ def main():
         )
     ]
 
-    mdn = build_model(args.nr_gaussians, args.activation_function, args.nr_neurons)
+    mdn = build_model(args.nr_gaussians, args.activation_function, args.nr_neurons, symmetrize=args.symmetrize)
     
     history = mdn.fit(x_train, 
                         y_train, 
