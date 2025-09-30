@@ -47,7 +47,7 @@ class DSMCSimulation:
             self.m = 2*2.6567e-26  # Oxygen
         else:
             raise ValueError("Unknown molecule: choose H2, N2, or O2")
-        
+        self.molecule = args.molecule
         # Degrees of freedom
         self.dof_trans = 3  # 3 translational degrees of freedom
         self.dof_rot = 2    # 2 rotational degrees of freedom for diatomic molecules
@@ -104,7 +104,7 @@ class DSMCSimulation:
             model_type = "BL"
         
         # Name the folder according to DSMC parameters
-        self.folder_name = f"logs/dsmc_{model_type}_N{self.n_particles}_steps{self.n_steps}_Ttr{self.T_tr_initial}_Trot{self.T_rot_initial}_Zr{self.Z_r}_domain{self.domain_size}_cells{self.n_cells}_sigma{self.sigma_collision}"
+        self.folder_name = f"logs/dsmc_{model_type}_N{self.n_particles}_steps{self.n_steps}_Ttr{self.T_tr_initial}_Trot{self.T_rot_initial}_Zr{self.Z_r}_domain{self.domain_size}_cells{self.n_cells}_sigma{self.sigma_collision}_molecule{self.molecule}"
         
         # Ensure that the directory exists
         os.makedirs(self.folder_name, exist_ok=True)
