@@ -16,9 +16,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train MDN model")
     parser.add_argument('--epochs', type=int, default=1000, help='Number of training epochs')
     parser.add_argument('--patience', type=int, default=10, help='Early stopping patience')
-    parser.add_argument('--nr_gaussians', type=int, default=20, help='Number of Gaussians in MDN')
-    parser.add_argument('--nr_neurons', type=int, default=8, help='Number of neurons in hidden layers')
-    parser.add_argument('--activation_function', type=str, default='relu', help='Activation function for hidden layers')
+    parser.add_argument('--nr-gaussians', type=int, default=20, help='Number of Gaussians in MDN')
+    parser.add_argument('--nr-neurons', type=int, default=8, help='Number of neurons in hidden layers')
+    parser.add_argument('--activation-function', type=str, default='relu', help='Activation function for hidden layers')
     parser.add_argument('--show-loss', action='store_true', help='Show loss plot after training')
     parser.add_argument('--save-model', action='store_true', help='Save the trained model weights')
     parser.add_argument('--test-size', type=float, default=0.3, help='Proportion of test data')
@@ -75,6 +75,7 @@ def main():
                 "patience": args.patience,
                 "data": args.data,
                 "test_size": args.test_size,
+                "symmetrize": args.symmetrize,
                 "final_loss": score
             }
                
