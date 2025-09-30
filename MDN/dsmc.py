@@ -11,6 +11,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from datetime import datetime
 
+from MDN.model import load_model
 
 tfb = tfp.bijectors
 tfd = tfp.distributions
@@ -63,6 +64,9 @@ class DSMCSimulation:
             self.w2 = self.mdn_model.get_weights()[2]
             self.b2 = self.mdn_model.get_weights()[3]
             self.Ngauss = Ngauss
+            
+            # new implemantation
+            self.layers = self.mdn_model.layers[:-1]  # Exclude the MDN output layer
         else:
             print("Using regular Larsen-Borgnakke model for energy exchange.")
             self.use_mdn = False
@@ -172,9 +176,13 @@ class DSMCSimulation:
         input_vec = np.vstack((np.log(Ec), logit(eps_t), logit(eps_rP))).T  # Shape: (N, 3)
     
         # Initialize output matrices
-        output_HL = np.maximum(0, np.dot(input_vec, self.w1) + self.b1)  # ReLU activation
+        # output_HL = np.maximum(0, np.dot(input_vec, self.w1) + self.b1)  # ReLU activation
     
-        output_OL = np.dot(output_HL, self.w2) + self.b2  # Linear activation
+        # output_OL = np.dot(output_HL, self.w2) + self.b2  # Linear activation
+        output_OL = input_vec
+        for layer in self.layers:
+            output_OL = layer(output_OL)
+        
     
         N = len(output_OL[:,0])
         # Initialize arrays for GMM parameters
@@ -196,7 +204,7 @@ class DSMCSimulation:
         for i in range(N):
             weights[i,:] = softmax(weights[i,:])
     
-        # Softplus for standard deviations#This seems hacky, does TF do this?
+        # Softplus for standard deviations#This seems hacky, does TF do this? -> yes
         sigma_eps_t = self.softplus(sigma_eps_t)  # Softplus
         sigma_eps_rP = self.softplus(sigma_eps_rP) # Softplus
         
@@ -475,9 +483,10 @@ if __name__ == "__main__":
     # Load the trained MDN model here (assuming TensorFlow model)
     parser = argparse.ArgumentParser(description="DSMC Simulation")
 
-    parser.add_argument("--mdn_model", type=str, default=None, help="Path to the trained MDN model")
-    parser.add_argument("--n_particles", type=int, default=5000, help="Number of particles")
-    parser.add_argument("--n_steps", type=int, default=1000, help="Number of steps")
+    parser.add_argument("--mdn-model", type=str, default=None, help="Path to the trained MDN model")
+    parser.add_argument("--n-particles", type=int, default=5000, help="Number of particles")
+    parser.add_argument("--n-steps", type=int, default=1000, help="Number of steps")
+    parser.add_argument("--symmetrize", action='store_true', help="Symmetrize the MDN model (if applicable)")
 
     args = parser.parse_args()
 
@@ -488,37 +497,13 @@ if __name__ == "__main__":
         # Disable oneDNN optimizations
         os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' #suppresses rounding error messages
         
-        def build_model(NGAUSSIANS, ACTIVATION, NNEURONS):
-            
-            event_shape = [2]
-            num_components = NGAUSSIANS
-            params_size = tfpl.MixtureSameFamily.params_size(num_components,
-                            component_params_size=tfpl.IndependentNormal.params_size(event_shape))
-
-            negloglik = lambda y, p_y: -p_y.log_prob(y)
-
-            model = tf.keras.models.Sequential([
-                tf.keras.layers.Dense(NNEURONS, activation=ACTIVATION),
-                tf.keras.layers.Dense(params_size, activation=None),
-                tfpl.MixtureSameFamily(num_components, tfpl.IndependentNormal(event_shape)),
-            ])
-            
-            model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate = 1e-4), loss=negloglik)
-
-            return model
-
         # DN Properties
         Ngauss = 20  # Number of Gaussians
         Nneurons = 8  # Number of neurons in hidden layer
-        # Nneurons_OL = Ngauss * 2 * 2 + Ngauss  # Number of neurons in output layer        
+        
+        mdn_model = load_model(args.mdn_model) 
 
-        mdn_model = build_model(Ngauss, 'relu', Nneurons) #settings have to match otherwise the loaded weights won't wrork.
 
-        #needed initialization step, probably determines the input size from here.
-        mdn_model(np.ones((1,3)))
-
-        mdn_model.load_weights(args.mdn_model)
-        mdn_model.summary()
         
             
         
