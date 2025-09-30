@@ -13,6 +13,24 @@ tfd = tfp.distributions
 tfpl = tfp.layers
 
 class Symmetrize(tf.keras.layers.Layer):
+   """
+   Custom Keras Layer to symmetrize input tensors for Mixture Density Networks (MDN).
+   This layer creates two matrices (`mat_a` and `mat`) that are used to transform the input tensor
+   in a way that enforces symmetry constraints.
+   Args:
+      nr_gaussians (int): Number of Gaussian components in the mixture model.
+      param_size (int): Size of the parameter vector for each Gaussian.
+   Attributes:
+      nr_gaussians (int): Stores the number of Gaussians.
+      params_size (int): Stores the parameter size.
+      mat_a (tf.Tensor): Matrix used for symmetric transformation.
+      mat (tf.Tensor): Matrix used for alternate diagonal transformation.
+   Methods:
+      call(inputs):
+         Applies the symmetric transformations to the input tensor.
+      create_sym_matrix():
+         Constructs the permutation matrices (`mat_a` and `mat`) used in the layer.
+   """
    def __init__(self, nr_gaussians, param_size):
       super(Symmetrize, self).__init__()     
       self.nr_gaussians = nr_gaussians
@@ -20,18 +38,21 @@ class Symmetrize(tf.keras.layers.Layer):
       self.mat_a, self.mat = self.create_sym_matrix()
 
    def call(self, inputs):
+      # Apply the symmetric transformations
       a = tf.linalg.matmul(inputs, self.mat_a)
       k = tf.linalg.matmul(inputs, self.mat)
       return tf.concat([a, k], axis=1)   
 
    def create_sym_matrix(self):
       nr_gauss_sym = self.nr_gaussians // 2
+      
+      # Create permutation matrix for weight paramater
       mat_a = tf.pad(tf.eye(nr_gauss_sym), [[0, self.params_size - nr_gauss_sym], [0, 0]])
-
       mat_a  = tf.concat((mat_a, mat_a), axis=1)
 
+      # Create matrix for mu and sigma
       i_mat = tf.eye(self.params_size-nr_gauss_sym)
-      alt_diag = tf.linalg.diag(tf.tile([-1.0, -1.0, 1.0, 1.0], [nr_gauss_sym]))
+      alt_diag = tf.linalg.diag(tf.tile([-1.0, -1.0, 1.0, 1.0], [nr_gauss_sym])) # mirror mu_1, mu_2 around 0
       mat = tf.concat((i_mat, alt_diag), axis=1)
       mat = tf.pad(mat, [[nr_gauss_sym,0], [0,0]])
 
@@ -47,8 +68,9 @@ class MDN(tf.keras.Model):
       self.symmetrize = symmetrize
       
       self.params_size = tfpl.MixtureSameFamily.params_size(self.nr_gaussians, component_params_size=tfpl.IndependentNormal.params_size(2))
+      
       if self.symmetrize:
-         self.params_size = self.params_size //2 
+         self.params_size = self.params_size //2 # half output of MLP
          
       self.hidden1 = Dense(nr_neurons, activation=activation_function)
       self.hidden2 = Dense(self.params_size, activation=activation_function)
@@ -66,13 +88,9 @@ class MDN(tf.keras.Model):
          x = self.sym(x)
       
       return self.mdn(x)
-            
    
 
-def build_model(nr_gaussians=20, activation_function='relu', nr_neurons=8, learning_rate=1e-4, symmetrize=False):
-    event_shape = [2]
-    num_components = nr_gaussians
- 
+def build_model(nr_gaussians=20, activation_function='relu', nr_neurons=8, learning_rate=1e-4, symmetrize=False): 
     negloglik = lambda y, p_y: -p_y.log_prob(y)
 
     model = MDN(nr_gaussians, nr_neurons, activation_function, symmetrize=symmetrize)
