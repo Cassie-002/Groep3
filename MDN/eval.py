@@ -47,7 +47,7 @@ def main():
     _, _, x_test, y_test = preprocessing(data, test_size=config.get("test_size"), include_b=config.get("include_b"))
     
     # Load model    
-    model = load_model(model_path, config_path, x_test)
+    model = load_model(model_path)
     
     # Make predictions
     y_pred = model.predict(x_test)
