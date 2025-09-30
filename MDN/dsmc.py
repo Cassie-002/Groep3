@@ -11,7 +11,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from datetime import datetime
 
-from MDN.model import load_model
+from model import load_model
 
 tfb = tfp.bijectors
 tfd = tfp.distributions
@@ -496,17 +496,10 @@ if __name__ == "__main__":
         
         # Disable oneDNN optimizations
         os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' #suppresses rounding error messages
-        
-        # DN Properties
-        Ngauss = 20  # Number of Gaussians
-        Nneurons = 8  # Number of neurons in hidden layer
-        
-        mdn_model = load_model(args.mdn_model) 
-
-
-        
+                
+        mdn_model = load_model(args.mdn_model)
+        Ngauss = mdn_model.nr_gaussians
             
-        
     else:
         mdn_model = None
 
