@@ -35,20 +35,29 @@ class DSMCSimulation:
 
 
         self.k_B = 1.38e-23  # Boltzmann constant (J/K)
-        self.m_H2 = 3.34e-26  # Mass of hydrogen molecule (kg)
         self.density = 0.9  # Density of particles (kg/m^3)
         self.omega = 0.5  # Collision model parameter
+
+        #Mass of molecule
+        if args.molecule == "H2":
+            self.m = 2*1.6738e-27  # Hydrogen
+        elif args.molecule == "N2":
+            self.m = 2*2.3250e-26  # Nitrogen
+        elif args.molecule == "O2":
+            self.m = 2*2.6567e-26  # Oxygen
+        else:
+            raise ValueError("Unknown molecule: choose H2, N2, or O2")
         
         # Degrees of freedom
         self.dof_trans = 3  # 3 translational degrees of freedom
         self.dof_rot = 2    # 2 rotational degrees of freedom for diatomic molecules
 
         # v_init = np.sqrt(3*boltz*T/mass)
-        self.v_init = np.sqrt(3 * self.k_B * self.T_tr_initial / self.m_H2)  # Initial velocity
+        self.v_init = np.sqrt(3 * self.k_B * self.T_tr_initial / self.m)  # Initial velocity
         #tau = 0.2*(L/ncell)/v_init
         self.time_step = 0.2 * (self.domain_size / self.n_cells) / self.v_init   # Set timestep (in seconds)
         # eff_num = density/mass * L**3 /npart
-        self.eff_num = self.density/self.m_H2 * domain_size**3 / n_particles
+        self.eff_num = self.density/self.m * domain_size**3 / n_particles
         # coeff = 0.5*eff_num*np.pi*diam**2*tau/(L**3/ncell)
         self.coeff = 0.5 * self.eff_num * np.pi * self.sigma_collision**2 * self.time_step / (self.domain_size**3 / self.n_cells)
 
@@ -113,7 +122,7 @@ class DSMCSimulation:
 
     def initialize_velocities(self, T):
         """Initialize velocities based on Maxwell-Boltzmann distribution."""
-        return np.sqrt(2 * self.k_B * T / self.m_H2) * np.sin(2 * np.pi * np.random.rand(self.n_particles, 3)) * np.sqrt(-np.log(np.random.rand(self.n_particles, 3)))
+        return np.sqrt(2 * self.k_B * T / self.m) * np.sin(2 * np.pi * np.random.rand(self.n_particles, 3)) * np.sqrt(-np.log(np.random.rand(self.n_particles, 3)))
 
     def initialize_positions(self):
         """Initialize positions of particles randomly in the domain."""
@@ -137,7 +146,7 @@ class DSMCSimulation:
 
     def compute_kinetic_energy(self, velocity):
         """Compute the kinetic energy of a particle."""
-        return 0.5 * self.m_H2 * np.sum(velocity**2)
+        return 0.5 * self.m * np.sum(velocity**2)
 
     def sigmoid(self, x):
         """Sigmoid function."""
@@ -237,7 +246,7 @@ class DSMCSimulation:
         self.rotational_energy[idx2] = E_rot_post - self.rotational_energy[idx1]
 
         # Correct calculation of relative speed
-        relative_speed = np.sqrt(4 * E_trans_post / self.m_H2)
+        relative_speed = np.sqrt(4 * E_trans_post / self.m)
         new_relative_velocity = self.random_unit_vector() * relative_speed
 
         # Update velocities
@@ -245,7 +254,7 @@ class DSMCSimulation:
         self.velocities[idx2] = CM_velocity - 0.5 * new_relative_velocity
 
         # Energy conservation check
-        E_trans_post_check = 0.25 * self.m_H2 * np.sum(new_relative_velocity**2)
+        E_trans_post_check = 0.25 * self.m * np.sum(new_relative_velocity**2)
         E_rot_post_check = self.rotational_energy[idx1] + self.rotational_energy[idx2]
         E_total_post = E_trans_post_check + E_rot_post_check
 
@@ -262,7 +271,7 @@ class DSMCSimulation:
         self.b_parameter = self.compute_b_parameter(idx1,idx2)
         # Total energy before collision
 
-        self.E_trans_pre = 0.25 * self.m_H2 * np.sum(relative_velocity**2)
+        self.E_trans_pre = 0.25 * self.m * np.sum(relative_velocity**2)
         self.E_rot_pre_idx1 = self.rotational_energy[idx1].copy()
         self.E_rot_pre_idx2 = self.rotational_energy[idx2].copy()
         self.E_rot_pre = self.E_rot_pre_idx1 + self.E_rot_pre_idx2
@@ -287,7 +296,7 @@ class DSMCSimulation:
             self.velocities[idx1] = CM_velocity + 0.5 * new_relative_velocity
             self.velocities[idx2] = CM_velocity - 0.5 * new_relative_velocity
 
-            E_trans_post = 0.25 * self.m_H2 * np.sum(new_relative_velocity**2)
+            E_trans_post = 0.25 * self.m * np.sum(new_relative_velocity**2)
 
             #  self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
             self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
@@ -476,6 +485,7 @@ if __name__ == "__main__":
     parser.add_argument("--mdn_model", type=str, default=None, help="Path to the trained MDN model")
     parser.add_argument("--n_particles", type=int, default=5000, help="Number of particles")
     parser.add_argument("--n_steps", type=int, default=1000, help="Number of steps")
+    parser.add_argument("--molecule", type=str, default = "H2", help = "Choose molecule, either H2, N2, O2")
 
     args = parser.parse_args()
 
