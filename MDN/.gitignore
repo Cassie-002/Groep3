@@ -1,5 +1,12 @@
 data/*
 notebooks/*
 models/*
+logs/*
+
 __pycache__/
 figures/*
+*/.vscode/
+*/.idea/
+*.h5
+*.DS_Store
+*.csv
