@@ -78,7 +78,9 @@ def getRandRotMat(key1, key2):
     return Rz @ Ry @ Rx
 
 @jit
-def LJ_e(r, sigma=sigma_LJ, eps=epsilon):
+def LJ_e(Xi, Xj, sigma=sigma_LJ, eps=epsilon):
+    r=Xi-Xj
+    r= jnp.linalg.norm(r)
     sr6 = (sigma / r)**6
     return 4.0 * eps * (sr6*sr6 - sr6)
 
@@ -100,8 +102,10 @@ def M_force_scalar(r):
     return -2*D_e*(jnp.exp(-(r-d_H2_init)/delta)-jnp.exp(-2*(r-d_H2_init)/delta))/delta
 
 @jit
-def r_Me(E):
-    return d_H2_init-delta*jnp.log(1+random.choice([-1,1])*jnp.sqrt(E/D_e))
+def r_Me(E, key):
+    key, subkey = jax.random.split(key)
+    return d_H2_init-delta*jnp.log(1+jax.random.choice(subkey,jnp.array([-1,1]))*jnp.sqrt(E/D_e))
+    #return d_H2_init-delta*jnp.log(1+jnp.sqrt(E/D_e))
 
 @jit
 def r_Me2(E,r):
@@ -119,7 +123,8 @@ def getFvib(Xi, Xj):
     rij = Xi - Xj
     r = jnp.linalg.norm(rij)
     fmag = M_force_scalar(r)
-    return jnp.where(r>d_H2_init, -fmag, fmag)
+    #return jnp.where(r>d_H2_init, -fmag, fmag)
+    return fmag
 
 
 
@@ -169,7 +174,7 @@ def signed_sqrt(val, key, I):
 
 @jit
 def simulate_one_collision(keys):
-    k1, k2, k3, k4, k5, k6, k7, k8, k9, k10, kR11, kR12, kR21, kR22, w1_key, w2_key, w3_key, w4_key = keys
+    k1, k2, k3, k4, k5, k6, k7, k8, k9, k10, kR11, kR12, kR21, kR22, w1_key, w2_key, w3_key, w4_key, v1_key, v2_key, kr = keys
 
     #Generate vibrational energy!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Random energies
@@ -196,13 +201,16 @@ def simulate_one_collision(keys):
     Epot2 = fracvib2*Evib2
     Ekin2 = (1.0-fracvib2)*Evib2
 
-    E=Etr_J+Erot_tot_1+Erot_tot_2+Evib1+Evib2
+    deltaR_init= jnp.linalg.norm(jnp.array([4.0*sigma_LJ, 0.0, b]))
+    Epot = LJ_e(jnp.array([-2.0*sigma_LJ, 0.0, -b/2.0]), jnp.array([2.0*sigma_LJ, 0.0, b/2.0]))
+
+    E=Etr_J+Erot_tot_1+Erot_tot_2+Evib1+Evib2+Epot
 
     #Calculate this from energy!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # atomic seperation
-    d_H2_1 = r_Me(Epot1)
+    d_H2_1 = r_Me(Epot1, kr)
     I1 = 0.5 * (d_H2_1**2) * m_H
-    d_H2_2 = r_Me(Epot2)
+    d_H2_2 = r_Me(Epot2, kr)
     I2 = 0.5 * (d_H2_2**2) * m_H
 
     # Angular velocities
@@ -241,20 +249,23 @@ def simulate_one_collision(keys):
     V1 = jnp.array([vtr, 0.0, 0.0])
     V2 = jnp.array([-vtr,0.0,0.0])
 
-    vibV1 = random.choice([-1,1])*jnp.sqrt(Ekin1 / m_H2)
-    vibV2 = random.choice([-1,1])*jnp.sqrt(Ekin2 / m_H2)
+    vibV1 = signed_sqrt(0.5*Ekin1, v1_key, m_H2)
+    vibV2 = signed_sqrt(Ekin2, v2_key, m_H2)
 
     m1 = 2*m_H; m2 = 2*m_H
+
+   
 
     # Helper for the while loop state
     state = (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, 0.0, 0)
 
     def cond_fn(state):
-        _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, dr, step = state
+        (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, dr, step) = state
         return (dr <= 5.0*sigma_LJ) & (step < nSteps)
+        #return step < 5
 
     def body_fn(state):
-        X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, dr, step = state
+        (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, dr, step) = state
         step += 1
         dr = jnp.linalg.norm(X1 - X2)
 
@@ -338,11 +349,14 @@ def simulate_one_collision(keys):
         Epot2_new = M_e(d_H2_2_new)
         Evib2_new = Ekin2_new +Epot2_new
 
+        Epot_new = LJ_e(X1_new, X2_new)
+
         #Normalization is fucked !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         #Normalize energy
-        
-        E_new = Etr_new + Erot1_new +Erot2_new+Evib1_new+Evib2_new
+        '''
+        E_new = Etr_new + Erot1_new +Erot2_new+Evib1_new+Evib2_new+Epot_new
         norm = E/E_new
+        print(Epot_new)
         Epot1_new = norm*Epot1_new
         Epot2_new = norm*Epot2_new
         d_H2_1_new = r_Me2(Epot1_new,d_H2_1_new)
@@ -355,9 +369,12 @@ def simulate_one_collision(keys):
         w2_new = norm*w2_new
         vibV1_new = norm*vibV1_new
         vibV2_new = norm*vibV2_new
+        '''
 
         I1_new = 0.5 * (d_H2_1_new**2) * m_H
         I2_new = 0.5 * (d_H2_2_new**2) * m_H
+
+        
 
      
 
@@ -366,7 +383,7 @@ def simulate_one_collision(keys):
         return (X1_new, X2_new, V1_new, V2_new, vibV1_new, vibV2_new, R1_new, R2_new, w1_new, w2_new, X11_new, X12_new, X21_new, X22_new,
                  d_H2_1_new, d_H2_2_new, I1_new, I2_new, dr, step)
 
-    X1f, X2f, V1f, V2f, vibV1f, vibV2f, R1f, R2f, w1f, w2f, X11_new, X12_new, X21_new, X22_new, d_H2_1f, d_H2_2f, I1f, I2f, drf, _ = lax.while_loop(cond_fn, body_fn, state)
+    (X1f, X2f, V1f, V2f, vibV1f, vibV2f, R1f, R2f, w1f, w2f, X11_new, X12_new, X21_new, X22_new, d_H2_1f, d_H2_2f, I1f, I2f, drf, _)= lax.while_loop(cond_fn, body_fn, state)
 
     # We need to calculate the energies from atom velocities and bondlength!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Make sure initial and final I!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -385,19 +402,21 @@ def simulate_one_collision(keys):
     Epot2_final = M_e(d_H2_2f)
     Evib2_final = Ekin2_final +Epot2_final
 
-    return jnp.array([b/sigma_LJ]), jnp.array([Etr_init/kB]), jnp.array([Erot_tot_1/kB]), jnp.array([Erot_tot_2/kB]), jnp.array([Evib1/kB]), jnp.array([Evib2/kB]), jnp.array([Etr_final/kB]), jnp.array([Erot1_final/kB]), jnp.array([Erot2_final/kB]), jnp.array([Evib1_final/kB]), jnp.array([Evib2_final/kB]), jnp.array([d_H2_1f])
+
+
+    return jnp.array([b/sigma_LJ]), jnp.array([Etr_init/kB]), jnp.array([Erot_tot_1/kB]), jnp.array([Erot_tot_2/kB]), jnp.array([Evib1/kB]), jnp.array([Evib2/kB]), jnp.array([Etr_final/kB]), jnp.array([Erot1_final/kB]), jnp.array([Erot2_final/kB]), jnp.array([Evib1_final/kB]), jnp.array([Evib2_final/kB])
 
 # ---------------------------
 # Run collisions
 # ---------------------------
-keys_all = jax.random.split(key, ncoll*18).reshape(ncoll, 18, 2)
+keys_all = jax.random.split(key, ncoll*21).reshape(ncoll, 21, 2)
 
 if ncoll == 1:
     results = simulate_one_collision(keys_all[0])
 else:
     results = vmap(simulate_one_collision)(keys_all)
 
-b_list, Etr_init_list, Er1_init_list, Er2_init_list, Ev1_init_list, Ev2_init_list, Etr_final_list, Er1_final_list, Er2_final_list, Ev1_final_list, Ev2_final_list, dtest = results
+b_list, Etr_init_list, Er1_init_list, Er2_init_list, Ev1_init_list, Ev2_init_list, Etr_final_list, Er1_final_list, Er2_final_list, Ev1_final_list, Ev2_final_list = results
 
 
 # Convert to numpy arrays for DataFrame
@@ -412,10 +431,11 @@ Er1_final_list = np.array(Er1_final_list).flatten()
 Er2_final_list = np.array(Er2_final_list).flatten()
 Ev1_final_list = np.array(Ev1_final_list).flatten()
 Ev2_final_list = np.array(Ev2_final_list).flatten()
-dtest = np.array(dtest).flatten()
-print(dtest)
+
+
 
 df = pd.DataFrame({
+    
     'b': np.array(b_list),
     'Etr': np.array(Etr_init_list),
     'Er1': np.array(Er1_init_list),
@@ -426,11 +446,10 @@ df = pd.DataFrame({
     'Er1p': np.array(Er1_final_list),
     'Er2p': np.array(Er2_final_list),
     'Ev1p': np.array(Ev1_final_list),
-    'Ev2p': np.array(Ev2_final_list),
-    'dtest': np.array(dtest)
+    'Ev2p': np.array(Ev2_final_list)
 })
 
-outname = f'collision_dataset2{ncoll}.csv'
-df.to_csv(outname, index=False)
+outname = f'collision_datasettest{ncoll}.csv'
+df.to_csv(outname, float_format="%.20f", index=False)
 print(f"Saved dataset to {outname}")
-print(getFvib(jnp.array([0,0,0]),jnp.array([0,0,1.0e-7])))
+
