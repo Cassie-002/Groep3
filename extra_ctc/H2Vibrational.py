@@ -249,23 +249,24 @@ def simulate_one_collision(keys):
     V1 = jnp.array([vtr, 0.0, 0.0])
     V2 = jnp.array([-vtr,0.0,0.0])
 
-    vibV1 = signed_sqrt(0.5*Ekin1, v1_key, m_H2)
+    vibV1 = signed_sqrt(Ekin1, v1_key, m_H2)
     vibV2 = signed_sqrt(Ekin2, v2_key, m_H2)
 
     m1 = 2*m_H; m2 = 2*m_H
 
-   
+    arr = jnp.zeros(nSteps)
+    arr = arr.at[0].set(Evib1/kB)
 
     # Helper for the while loop state
-    state = (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, 0.0, 0)
+    state = (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, 0.0, 0),(arr)
 
     def cond_fn(state):
-        (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, dr, step) = state
+        (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, dr, step),(_) = state
         return (dr <= 5.0*sigma_LJ) & (step < nSteps)
         #return step < 5
 
     def body_fn(state):
-        (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, dr, step) = state
+        (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, dr, step),(arr) = state
         step += 1
         dr = jnp.linalg.norm(X1 - X2)
 
@@ -375,15 +376,15 @@ def simulate_one_collision(keys):
         I2_new = 0.5 * (d_H2_2_new**2) * m_H
 
         
-
+        arr = arr.at[step].set(Evib1_new/kB)
      
 
 
 
         return (X1_new, X2_new, V1_new, V2_new, vibV1_new, vibV2_new, R1_new, R2_new, w1_new, w2_new, X11_new, X12_new, X21_new, X22_new,
-                 d_H2_1_new, d_H2_2_new, I1_new, I2_new, dr, step)
+                 d_H2_1_new, d_H2_2_new, I1_new, I2_new, dr, step),(arr)
 
-    (X1f, X2f, V1f, V2f, vibV1f, vibV2f, R1f, R2f, w1f, w2f, X11_new, X12_new, X21_new, X22_new, d_H2_1f, d_H2_2f, I1f, I2f, drf, _)= lax.while_loop(cond_fn, body_fn, state)
+    (X1f, X2f, V1f, V2f, vibV1f, vibV2f, R1f, R2f, w1f, w2f, X11_new, X12_new, X21_new, X22_new, d_H2_1f, d_H2_2f, I1f, I2f, drf, _),(arrf)= lax.while_loop(cond_fn, body_fn, state)
 
     # We need to calculate the energies from atom velocities and bondlength!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Make sure initial and final I!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -404,7 +405,7 @@ def simulate_one_collision(keys):
 
 
 
-    return jnp.array([b/sigma_LJ]), jnp.array([Etr_init/kB]), jnp.array([Erot_tot_1/kB]), jnp.array([Erot_tot_2/kB]), jnp.array([Evib1/kB]), jnp.array([Evib2/kB]), jnp.array([Etr_final/kB]), jnp.array([Erot1_final/kB]), jnp.array([Erot2_final/kB]), jnp.array([Evib1_final/kB]), jnp.array([Evib2_final/kB])
+    return jnp.array([b/sigma_LJ]), jnp.array([Etr_init/kB]), jnp.array([Erot_tot_1/kB]), jnp.array([Erot_tot_2/kB]), jnp.array([Evib1/kB]), jnp.array([Evib2/kB]), jnp.array([Etr_final/kB]), jnp.array([Erot1_final/kB]), jnp.array([Erot2_final/kB]), jnp.array([Evib1_final/kB]), jnp.array([Evib2_final/kB]), arrf
 
 # ---------------------------
 # Run collisions
@@ -416,7 +417,7 @@ if ncoll == 1:
 else:
     results = vmap(simulate_one_collision)(keys_all)
 
-b_list, Etr_init_list, Er1_init_list, Er2_init_list, Ev1_init_list, Ev2_init_list, Etr_final_list, Er1_final_list, Er2_final_list, Ev1_final_list, Ev2_final_list = results
+b_list, Etr_init_list, Er1_init_list, Er2_init_list, Ev1_init_list, Ev2_init_list, Etr_final_list, Er1_final_list, Er2_final_list, Ev1_final_list, Ev2_final_list, arrf = results
 
 
 # Convert to numpy arrays for DataFrame
@@ -431,7 +432,7 @@ Er1_final_list = np.array(Er1_final_list).flatten()
 Er2_final_list = np.array(Er2_final_list).flatten()
 Ev1_final_list = np.array(Ev1_final_list).flatten()
 Ev2_final_list = np.array(Ev2_final_list).flatten()
-
+arrf = np.array(arrf).flatten()
 
 
 df = pd.DataFrame({
@@ -447,6 +448,8 @@ df = pd.DataFrame({
     'Er2p': np.array(Er2_final_list),
     'Ev1p': np.array(Ev1_final_list),
     'Ev2p': np.array(Ev2_final_list)
+    
+    #'Ev1': np.array(arrf)    
 })
 
 outname = f'collision_datasettest{ncoll}.csv'
