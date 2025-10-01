@@ -151,6 +151,24 @@ def getM(F13tr, F14tr, F23tr, F24tr, R1, R2, dH2_1, dH2_2):
     
     return jnp.array([M1_x, M1_y, M1_z]), jnp.array([M2_x, M2_y, M2_z])
 
+#We need the contribution of how the LJ forces are different for the two atoms of a molecule to the vibrational energy.
+@jit
+def getFvibLJ(F13tr, F14tr, F23tr, F24tr, R1, R2, dH2_1, dH2_2):
+    F13_r = F13tr @ R1
+    F14_r = F14tr @ R1
+    F23_r = F23tr @ R1
+    F24_r = F24tr @ R1
+    
+    F31_r = -F13tr @ R2
+    F41_r = -F14tr @ R2
+    F32_r = -F23tr @ R2
+    F42_r = -F24tr @ R2
+
+    #Fij is force on i from j
+    F1 = F13_r[2] + F14_r[2] + F23_r[2] + F24_r[2]
+    F2 = -F1
+    return F1, F2
+
 @jit
 def getVdot(F, m):
     return F / m
@@ -283,12 +301,14 @@ def simulate_one_collision(keys):
         F12 = getFvib(X11, X12)
         F34 = getFvib(X21, X22)
 
+        Fextra1, Fextra2 = getFvibLJ(F13, F14, F23, F24, R1, R2, d_H2_1, d_H2_2)
+
         # Include steps for atom vibrations!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Velocity Verlet
         V1_ = V1 + 0.5*dt*getVdot(F1,m1)
         V2_ = V2 + 0.5*dt*getVdot(F2,m2)
-        vibV1_ = vibV1 + 0.5*dt*getVdot(F12,m1)
-        vibV2_ = vibV2 + 0.5*dt*getVdot(F34,m2)
+        vibV1_ = vibV1 + 0.5*dt*getVdot(F12,m1) + 0.5*dt*getVdot(Fextra1,m1)
+        vibV2_ = vibV2 + 0.5*dt*getVdot(F34,m2) + 0.5*dt*getVdot(Fextra2,m2)
         X1_new = X1 + dt*V1_
         X2_new = X2 + dt*V2_
         d_H2_1_new = d_H2_1 + dt*vibV1_
@@ -325,14 +345,16 @@ def simulate_one_collision(keys):
 
         F12_new = getFvib(X11_new, X12_new)
         F34_new = getFvib(X21_new, X22_new)
+        Fextra1_new, Fextra2_new = getFvibLJ(F13_new,F14_new,F23_new,F24_new,R1_new,R2_new,d_H2_1, d_H2_2)
+
         I1_new = 0.5 * (d_H2_1_new**2) * m_H
         I2_new = 0.5 * (d_H2_2_new**2) * m_H
 
 
         V1_new = V1_ + 0.5*dt*getVdot(F1_new,m1)
         V2_new = V2_ + 0.5*dt*getVdot(F2_new,m2)
-        vibV1_new = vibV1_ + 0.5*dt*getVdot(F12_new,m1)
-        vibV2_new = vibV2_ + 0.5*dt*getVdot(F34_new,m2)
+        vibV1_new = vibV1_ + 0.5*dt*getVdot(F12_new,m1) + 0.5*dt*getVdot(Fextra1_new,m1)
+        vibV2_new = vibV2_ + 0.5*dt*getVdot(F34_new,m2) + 0.5*dt*getVdot(Fextra2_new,m2)
         w1_new = w1_ + 0.5*dt*getWdot(M1_new,I1_new)
         w2_new = w2_ + 0.5*dt*getWdot(M2_new,I2_new)
 
@@ -354,10 +376,9 @@ def simulate_one_collision(keys):
 
         #Normalization is fucked !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         #Normalize energy
-        '''
+        
         E_new = Etr_new + Erot1_new +Erot2_new+Evib1_new+Evib2_new+Epot_new
         norm = E/E_new
-        print(Epot_new)
         Epot1_new = norm*Epot1_new
         Epot2_new = norm*Epot2_new
         d_H2_1_new = r_Me2(Epot1_new,d_H2_1_new)
@@ -370,7 +391,7 @@ def simulate_one_collision(keys):
         w2_new = norm*w2_new
         vibV1_new = norm*vibV1_new
         vibV2_new = norm*vibV2_new
-        '''
+        
 
         I1_new = 0.5 * (d_H2_1_new**2) * m_H
         I2_new = 0.5 * (d_H2_2_new**2) * m_H
