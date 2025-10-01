@@ -14,7 +14,7 @@ def plot_loss(history):
     plt.grid(False)
     plt.show()
        
-def plot_scatter(x, y, intercept=False, plot_regline=True, title='', xlabel='', ylabel='', 
+def plot_scatter(x, y, intercept=False, plot_regline=False, plot_xy=True, title='', xlabel='', ylabel='', 
                      xlim=None, ylim=None, s=10, return_params=False):
     if xlim is None:
         xlim = (x.min(), x.max())
@@ -28,6 +28,11 @@ def plot_scatter(x, y, intercept=False, plot_regline=True, title='', xlabel='', 
     if plot_regline:
         xi, yi, slope, reg_intercept = regline(x, y, intercept=intercept)
         plt.plot(xi, yi, 'r--')
+    
+    if plot_xy:
+        plt.plot(x, x, 'k--', alpha=0.5)
+        reg_intercept = 0
+        slope = 1
 
     # Format plot
     plt.xlabel(xlabel)
