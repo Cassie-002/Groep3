@@ -34,32 +34,52 @@ class Symmetrize(tf.keras.layers.Layer):
    def __init__(self, nr_gaussians, param_size):
       super(Symmetrize, self).__init__()     
       self.nr_gaussians = nr_gaussians
+      self.nr_gauss_sym = self.nr_gaussians // 2
       self.params_size = param_size
-      self.mat_a, self.mat = self.create_sym_matrix()
+      self.mat_alpha, self.mat_mu_sigma, self.mat_mu, self.mat_sigma = self.create_sym_matrix()
 
-   def call(self, inputs):
-      # Apply the symmetric transformations
-      a = tf.linalg.matmul(inputs, self.mat_a)
-      k = tf.linalg.matmul(inputs, self.mat)
-      return tf.concat([a, k], axis=1)   
-
-   def create_sym_matrix(self):
-      nr_gauss_sym = self.nr_gaussians // 2
+   def call(self, x, inputs):
+      # eps_tr = inputs[:, 1]
+      # eps_rA = inputs[:, 2]
+      inputs = tf.pad(inputs, [[0,0],[0,2]])
       
+      
+      # Apply the symmetric transformations
+      alpha = tf.linalg.matmul(x, self.mat_alpha) 
+      mu_sigma = tf.linalg.matmul(x, self.mat_mu_sigma)
+      mu = tf.linalg.matmul(x, self.mat_mu)   
+      sigma = tf.linalg.matmul(x, self.mat_sigma)  
+      # k = tf.linalg.matmul(inputs, self.mat)
+      mu_sym = 2 * tf.tile(inputs[:, 1:], [1, self.nr_gauss_sym]) - mu
+
+      mu_sigma_sym = mu_sym + sigma
+      
+      return tf.concat([alpha, mu_sigma, mu_sigma_sym], axis=1)   
+
+   def create_sym_matrix(self):      
       # Create permutation matrix for weight paramater
-      mat_a = tf.pad(tf.eye(nr_gauss_sym), [[0, self.params_size - nr_gauss_sym], [0, 0]])
-      mat_a  = tf.concat((mat_a, mat_a), axis=1)
+      mat_alpha = tf.pad(tf.eye(self.nr_gauss_sym), [[0, self.params_size - self.nr_gauss_sym], [0, 0]])
+      mat_alpha  = tf.concat((mat_alpha, mat_alpha), axis=1)
 
       # Create matrix for mu and sigma
-      i_mat = tf.eye(self.params_size-nr_gauss_sym)
-      alt_diag = tf.linalg.diag(tf.tile([-1.0, -1.0, 1.0, 1.0], [nr_gauss_sym])) # mirror mu_1, mu_2 around 0
-      mat = tf.concat((i_mat, alt_diag), axis=1)
-      mat = tf.pad(mat, [[nr_gauss_sym,0], [0,0]])
-
-      mat_a = tf.cast(mat_a, tf.float64)
-      mat = tf.cast(mat, tf.float64)
+      mat_mu_sigma = tf.eye(self.params_size-self.nr_gauss_sym)
+      # alt_diag = tf.linalg.diag(tf.tile([-1.0, -1.0, 1.0, 1.0], [nr_gauss_sym])) # mirror mu_1, mu_2 around 0
+      # mat = tf.concat((i_mat, alt_diag), axis=1)
+      mat_mu_sigma = tf.pad(mat_mu_sigma, [[self.nr_gauss_sym, 0], [0, 0]])
       
-      return mat_a, mat  
+      diag_mu = tf.linalg.diag(tf.tile([1.0, 1.0, 0.0, 0.0], [self.nr_gauss_sym]))
+      mat_mu = tf.pad(diag_mu, [[self.nr_gauss_sym, 0], [0,0]])
+      
+      diag_sigma = tf.linalg.diag(tf.tile([0.0, 0.0, 1.0, 1.0], [self.nr_gauss_sym]))
+      # mat_sigma = tf.concat((diag_sigma, diag_sigma), axis=1)
+      mat_sigma = tf.pad(diag_sigma, [[self.nr_gauss_sym,0], [0,0]])
+      
+      mat_alpha = tf.cast(mat_alpha, tf.float64)
+      mat_mu_sigma = tf.cast(mat_mu_sigma, tf.float64)
+      mat_mu = tf.cast(mat_mu, tf.float64)
+      mat_sigma = tf.cast(mat_sigma, tf.float64)
+            
+      return mat_alpha, mat_mu_sigma, mat_mu, mat_sigma
 
 class MDN(tf.keras.Model):
    def __init__(self, nr_gaussians, nr_neurons, activation_function, symmetrize=False):
@@ -73,8 +93,9 @@ class MDN(tf.keras.Model):
          self.params_size = self.params_size //2 # half output of MLP
          
       self.hidden1 = Dense(nr_neurons, activation=activation_function)
-      self.hidden2 = Dense(self.params_size, activation=activation_function)
+      self.hidden2 = Dense(self.params_size, activation=None)
       
+      # Initialize Symmetrize layer after dense layers, for correct use in dsmc.py
       if self.symmetrize:
          self.sym = Symmetrize(self.nr_gaussians, self.params_size)
       
@@ -85,7 +106,7 @@ class MDN(tf.keras.Model):
       x = self.hidden2(x)
       
       if self.symmetrize:
-         x = self.sym(x)
+         x = self.sym(x, inputs)
       
       return self.mdn(x)
    
