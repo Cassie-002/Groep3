@@ -23,7 +23,11 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(ROOT_DIR, 'logs')
 
 class DSMCSimulation:
-    def __init__(self, n_particles, n_steps, mdn_model=None, T_tr_initial=167, T_rot_initial=1000, Z_r=245, domain_size=6.4e-4, n_cells=10, sigma_collision=2.92e-10):
+    def __init__(self, n_particles, n_steps, 
+                 mdn_model=None, T_tr_initial=167, 
+                 T_rot_initial=1000, Z_r=245, 
+                 domain_size=6.4e-4, n_cells=10, 
+                 sigma_collision=2.92e-10):
         # Simulation parameters
         self.n_particles = n_particles
         self.n_steps = n_steps
@@ -63,7 +67,7 @@ class DSMCSimulation:
             self.b1 = self.mdn_model.get_weights()[1]
             self.w2 = self.mdn_model.get_weights()[2]
             self.b2 = self.mdn_model.get_weights()[3]
-            self.Ngauss = Ngauss
+            self.Ngauss = self.mdn_model.nr_gaussians
             
             # new implemantation
             self.layers = self.mdn_model.layers[:-1]  # Exclude the MDN output layer
@@ -175,15 +179,17 @@ class DSMCSimulation:
         # Constructing input vector for MDN
         input_vec = np.vstack((np.log(Ec), logit(eps_t), logit(eps_rP))).T  # Shape: (N, 3)
     
-        # Initialize output matrices
+        # # Initialize output matrices
         # output_HL = np.maximum(0, np.dot(input_vec, self.w1) + self.b1)  # ReLU activation
-    
         # output_OL = np.dot(output_HL, self.w2) + self.b2  # Linear activation
-        output_OL = input_vec
-        for layer in self.layers:
-            output_OL = layer(output_OL)
         
-    
+        # New implementation using the model's layers
+        output_OL = input_vec
+        for layer in self.layers[:-1]:
+            output_OL = layer(output_OL)
+            
+        output_OL = self.layers[-1](output_OL, input_vec)
+        
         N = len(output_OL[:,0])
         # Initialize arrays for GMM parameters
         weights = np.zeros((N, self.Ngauss))
@@ -498,7 +504,7 @@ if __name__ == "__main__":
         os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' #suppresses rounding error messages
                 
         mdn_model = load_model(args.mdn_model)
-        Ngauss = mdn_model.nr_gaussians
+        # Ngauss = mdn_model.nr_gaussians
             
     else:
         mdn_model = None
