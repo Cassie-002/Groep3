@@ -68,6 +68,7 @@ class DSMCSimulation:
             self.w2 = self.mdn_model.get_weights()[2]
             self.b2 = self.mdn_model.get_weights()[3]
             self.Ngauss = self.mdn_model.nr_gaussians
+            self.include_b = self.mdn_model.include_b
             
             # new implemantation
             self.layers = self.mdn_model.layers[:-1]  # Exclude the MDN output layer
@@ -178,7 +179,10 @@ class DSMCSimulation:
     
         # Constructing input vector for MDN
         input_vec = np.vstack((np.log(Ec), logit(eps_t), logit(eps_rP))).T  # Shape: (N, 3)
-    
+        
+        if self.include_b:
+            input_vec = np.hstack((input_vec, self.b_parameter[np.newaxis, np.newaxis]))  # Shape: (N, 4)
+            
         # # Initialize output matrices
         # output_HL = np.maximum(0, np.dot(input_vec, self.w1) + self.b1)  # ReLU activation
         # output_OL = np.dot(output_HL, self.w2) + self.b2  # Linear activation
@@ -493,7 +497,8 @@ if __name__ == "__main__":
     parser.add_argument("--n-particles", type=int, default=5000, help="Number of particles")
     parser.add_argument("--n-steps", type=int, default=1000, help="Number of steps")
     parser.add_argument("--symmetrize", action='store_true', help="Symmetrize the MDN model (if applicable)")
-
+    parser.add_argument("--equilibrium", action='store_true', help="Start in equilibrium state")
+    
     args = parser.parse_args()
 
     if args.mdn_model: ##--mdn path
@@ -503,13 +508,15 @@ if __name__ == "__main__":
         # Disable oneDNN optimizations
         os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' #suppresses rounding error messages
                 
-        mdn_model = load_model(args.mdn_model)
-        # Ngauss = mdn_model.nr_gaussians
-            
+        mdn_model = load_model(args.mdn_model)    
     else:
         mdn_model = None
-
-    dsmc = DSMCSimulation(n_particles=args.n_particles, n_steps=args.n_steps, mdn_model=mdn_model)
+    
+    if args.equilibrium:
+        dsmc = DSMCSimulation(n_particles=args.n_particles, n_steps=args.n_steps, mdn_model=mdn_model, T_tr_initial=300, T_rot_initial=300)
+    else:
+        dsmc = DSMCSimulation(n_particles=args.n_particles, n_steps=args.n_steps, mdn_model=mdn_model)
+        
     dsmc.run_simulation()
     print(f"Total elastic collisions: {dsmc.elastic_collisions}")
     print(f"Total inelastic collisions: {dsmc.inelastic_collisions}")

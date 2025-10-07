@@ -39,10 +39,8 @@ class Symmetrize(tf.keras.layers.Layer):
       self.mat_alpha, self.mat_mu_sigma, self.mat_mu, self.mat_sigma = self.create_sym_matrix()
 
    def call(self, x, inputs):
-      # eps_tr = inputs[:, 1]
-      # eps_rA = inputs[:, 2]
-      inputs = tf.pad(inputs, [[0,0],[0,2]])
-      
+      # Gather eps; eps_tr = inputs[:, 1], eps_rA = inputs[:, 2]
+      inputs = tf.pad(inputs[:, 1:3], [[0,0],[0,2]])
       
       # Apply the symmetric transformations
       alpha = tf.linalg.matmul(x, self.mat_alpha) 
@@ -50,7 +48,7 @@ class Symmetrize(tf.keras.layers.Layer):
       mu = tf.linalg.matmul(x, self.mat_mu)   
       sigma = tf.linalg.matmul(x, self.mat_sigma)  
       # k = tf.linalg.matmul(inputs, self.mat)
-      mu_sym = 2 * tf.tile(inputs[:, 1:], [1, self.nr_gauss_sym]) - mu
+      mu_sym = 2 * tf.tile(inputs, [1, self.nr_gauss_sym]) - mu
 
       mu_sigma_sym = mu_sym + sigma
       
@@ -82,10 +80,11 @@ class Symmetrize(tf.keras.layers.Layer):
       return mat_alpha, mat_mu_sigma, mat_mu, mat_sigma
 
 class MDN(tf.keras.Model):
-   def __init__(self, nr_gaussians, nr_neurons, activation_function, symmetrize=False):
+   def __init__(self, nr_gaussians, nr_neurons, activation_function, symmetrize=False, include_b=False):
       super(MDN, self).__init__()
       self.nr_gaussians = nr_gaussians
       self.symmetrize = symmetrize
+      self.include_b = include_b
       
       self.params_size = tfpl.MixtureSameFamily.params_size(self.nr_gaussians, component_params_size=tfpl.IndependentNormal.params_size(2))
       
@@ -111,10 +110,10 @@ class MDN(tf.keras.Model):
       return self.mdn(x)
    
 
-def build_model(nr_gaussians=20, activation_function='relu', nr_neurons=8, learning_rate=1e-4, symmetrize=False): 
+def build_model(nr_gaussians=20, activation_function='relu', nr_neurons=8, learning_rate=1e-4, symmetrize=False, include_b=False): 
     negloglik = lambda y, p_y: -p_y.log_prob(y)
 
-    model = MDN(nr_gaussians, nr_neurons, activation_function, symmetrize=symmetrize)
+    model = MDN(nr_gaussians, nr_neurons, activation_function, symmetrize=symmetrize, include_b=include_b)
     
     model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate), loss=negloglik)
 
@@ -125,8 +124,19 @@ def load_model(model_path, config_path=None):
       config_path = model_path.replace('.h5', '_config.json')
    
    config = open_config(config_path)
-   model = build_model(config.get("nr_gaussians"), config.get("activation_function"), config.get("nr_neurons"), symmetrize=config.get("symmetrize"))
-   model(np.ones((1,3)))  # Initialize model
+   model = build_model(config.get("nr_gaussians"), 
+                       config.get("activation_function"), 
+                       config.get("nr_neurons"), 
+                       symmetrize=config.get("symmetrize"), 
+                       include_b=config.get("include_b"))
+   
+   # Initialize model
+   if config.get("include_b"):
+      x = np.ones((1,4))
+   else:
+      x = np.ones((1,3))
+   model(x)  
+   
    model.load_weights(model_path)
    model.summary()
    return model
