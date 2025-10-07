@@ -17,9 +17,10 @@ tfb = tfp.bijectors
 tfd = tfp.distributions
 tfpl = tfp.layers
 
-np.random.seed(1)
+np.random.seed(datetime.now().microsecond)
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(ROOT_DIR, 'models')
 LOG_DIR = os.path.join(ROOT_DIR, 'logs')
 
 class DSMCSimulation:
@@ -116,7 +117,8 @@ class DSMCSimulation:
         self.log_writer = csv.writer(self.log_file)
         
         # Write headers
-        self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
+        # self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
+        self.log_writer.writerow(['time_step', 'collision_type', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
 
     def close_logger(self):
         """Close the collision logger file."""
@@ -272,14 +274,15 @@ class DSMCSimulation:
         assert np.isclose(E_total_pre, E_total_post, atol=1e-10), "Energy conservation violated!"
 
         # self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
-        self.log_writer.writerow([self.current_step*self.time_step, "inelastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.rotational_energy[idx1], self.E_rot_pre_idx2, self.rotational_energy[idx2]])
+        # self.log_writer.writerow([self.current_step*self.time_step, "inelastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.rotational_energy[idx1], self.E_rot_pre_idx2, self.rotational_energy[idx2]])
+        self.log_writer.writerow([self.current_step*self.time_step, "inelastic", self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.rotational_energy[idx1], self.E_rot_pre_idx2, self.rotational_energy[idx2]])
     
     def perform_collision(self, idx1, idx2 , max_rel_velocity):
         """Handle the collision between two particles using the regular Larsen-Borgnakke model."""
         velocity1, velocity2 = self.velocities[idx1], self.velocities[idx2]
         relative_velocity = self.calculate_relative_velocity(velocity1, velocity2)
         CM_velocity = 0.5 * (velocity1 + velocity2)
-        self.b_parameter = self.compute_b_parameter(idx1,idx2)
+        # self.b_parameter = self.compute_b_parameter(idx1,idx2)
         # Total energy before collision
 
         self.E_trans_pre = 0.25 * self.m_H2 * np.sum(relative_velocity**2)
@@ -310,7 +313,8 @@ class DSMCSimulation:
             E_trans_post = 0.25 * self.m_H2 * np.sum(new_relative_velocity**2)
 
             #  self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
-            self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
+            # self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
+            self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
             return
         
         if self.use_mdn == False:  # Inelastic collision using regular Larsen-Borgnakke model
@@ -507,8 +511,9 @@ if __name__ == "__main__":
         
         # Disable oneDNN optimizations
         os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' #suppresses rounding error messages
-                
-        mdn_model = load_model(args.mdn_model)    
+        
+        model_path = os.path.join(MODEL_DIR, f"{args.mdn_model}.h5")
+        mdn_model = load_model(model_path)    
     else:
         mdn_model = None
     
