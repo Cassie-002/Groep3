@@ -59,6 +59,11 @@ class DSMCSimulation:
         # coeff = 0.5*eff_num*np.pi*diam**2*tau/(L**3/ncell)
         self.coeff = 0.5 * self.eff_num * np.pi * self.sigma_collision**2 * self.time_step / (self.domain_size**3 / self.n_cells)
 
+        # TEMP
+        # self.time_step = 1e-4
+        # t_end = 0.010
+        # self.n_steps = int(t_end/self.time_step)
+
         # Option to use the MDN-based surrogate model
         if mdn_model is not None:
             print("Using MDN model for energy exchange.")
@@ -173,6 +178,25 @@ class DSMCSimulation:
         return np.log(np.expm1(x))  # Using expm1 for numerical stability
 
     def mdn_energy_exchange_new(self, Ec, eps_t, eps_rP):
+        # Ensure inputs are numpy arrays
+        Ec = np.asarray(Ec)
+        eps_t = np.asarray(eps_t)
+        eps_rP = np.asarray(eps_rP)
+        
+        # Constructing input vector for MDN
+        input_vec = np.vstack((np.log(Ec), logit(eps_t), logit(eps_rP))).T  # Shape: (N, 3)
+        
+        output = self.mdn_model(input_vec).sample()
+        eps_t_p, eps_rP_p = output[:,0], output[:,1]
+        
+        # Post-processing fractions back to [0, 1] range with Sigmoid function
+        eps_t_p = expit(eps_t_p)
+        eps_rP_p = expit(eps_rP_p)
+    
+        return eps_t_p, eps_rP_p
+
+
+    def mdn_energy_exchange_old(self, Ec, eps_t, eps_rP):
         
         # Ensure inputs are numpy arrays
         Ec = np.asarray(Ec)
@@ -181,7 +205,7 @@ class DSMCSimulation:
     
         # Constructing input vector for MDN
         input_vec = np.vstack((np.log(Ec), logit(eps_t), logit(eps_rP))).T  # Shape: (N, 3)
-        
+
         if self.include_b:
             input_vec = np.hstack((input_vec, self.b_parameter[np.newaxis, np.newaxis]))  # Shape: (N, 4)
             
