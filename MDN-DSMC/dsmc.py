@@ -122,8 +122,8 @@ class DSMCSimulation:
         self.log_writer = csv.writer(self.log_file)
         
         # Write headers
-        # self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
-        self.log_writer.writerow(['time_step', 'collision_type', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
+        self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
+        # self.log_writer.writerow(['time_step', 'collision_type', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
 
     def close_logger(self):
         """Close the collision logger file."""
@@ -152,11 +152,11 @@ class DSMCSimulation:
             cell_indices = (self.positions[i] // self.cell_size).astype(int)
             x, y, z = cell_indices
             self.cells[x, y, z].append(i)
-
+    
     def compute_kinetic_energy(self, velocity):
         """Compute the kinetic energy of a particle."""
         return 0.5 * self.m_H2 * np.sum(velocity**2)
-
+    
     def sigmoid(self, x):
         """Sigmoid function."""
         return 1 / (1 + np.exp(-x))
@@ -170,7 +170,7 @@ class DSMCSimulation:
     def softplus(self, x):
         """Compute the Softplus function."""
         return np.log1p(np.exp(x))  # Using log1p for numerical stability
-
+        
     def inverse_softplus(self, x):
         """Compute the Inverse Softplus function."""
         if np.any(x <= 0):
@@ -185,6 +185,9 @@ class DSMCSimulation:
         
         # Constructing input vector for MDN
         input_vec = np.vstack((np.log(Ec), logit(eps_t), logit(eps_rP))).T  # Shape: (N, 3)
+        
+        if self.include_b:
+            input_vec = np.hstack((input_vec, self.b_parameter[np.newaxis, np.newaxis]))  # Shape: (N, 4)
         
         output = self.mdn_model(input_vec).sample()
         eps_t_p, eps_rP_p = output[:,0], output[:,1]
@@ -298,15 +301,18 @@ class DSMCSimulation:
         assert np.isclose(E_total_pre, E_total_post, atol=1e-10), "Energy conservation violated!"
 
         # self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
-        # self.log_writer.writerow([self.current_step*self.time_step, "inelastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.rotational_energy[idx1], self.E_rot_pre_idx2, self.rotational_energy[idx2]])
-        self.log_writer.writerow([self.current_step*self.time_step, "inelastic", self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.rotational_energy[idx1], self.E_rot_pre_idx2, self.rotational_energy[idx2]])
+        if self.include_b:
+            self.log_writer.writerow([self.current_step*self.time_step, "inelastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.rotational_energy[idx1], self.E_rot_pre_idx2, self.rotational_energy[idx2]])
+        else:
+            self.log_writer.writerow([self.current_step*self.time_step, "inelastic", self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.rotational_energy[idx1], self.E_rot_pre_idx2, self.rotational_energy[idx2]])
     
     def perform_collision(self, idx1, idx2 , max_rel_velocity):
         """Handle the collision between two particles using the regular Larsen-Borgnakke model."""
         velocity1, velocity2 = self.velocities[idx1], self.velocities[idx2]
         relative_velocity = self.calculate_relative_velocity(velocity1, velocity2)
         CM_velocity = 0.5 * (velocity1 + velocity2)
-        # self.b_parameter = self.compute_b_parameter(idx1,idx2)
+        if self.include_b:
+            self.b_parameter = self.compute_b_parameter(idx1,idx2)
         # Total energy before collision
 
         self.E_trans_pre = 0.25 * self.m_H2 * np.sum(relative_velocity**2)
@@ -337,10 +343,13 @@ class DSMCSimulation:
             E_trans_post = 0.25 * self.m_H2 * np.sum(new_relative_velocity**2)
 
             #  self.log_writer.writerow(['time_step', 'collision_type', 'b_parameter', 'E_tr_pre', 'E_tr_post', 'E_rotA_pre', 'E_rotA_post', 'E_rotB_pre', 'E_rotB_post'])
-            # self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
-            self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
+            if self.include_b:
+                self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.b_parameter, self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
+            else:
+                self.log_writer.writerow([self.current_step*self.time_step, "elastic", self.E_trans_pre, E_trans_post, self.E_rot_pre_idx1, self.E_rot_pre_idx1, self.E_rot_pre_idx2, self.E_rot_pre_idx2])
             return
         
+        # Inelastic collisions
         if self.use_mdn == False:  # Inelastic collision using regular Larsen-Borgnakke model
             self.inelastic_collisions += 1
 
@@ -361,7 +370,6 @@ class DSMCSimulation:
             #  update_energy_and_velocity(self, idx1, idx2, E_total_pre, energy_fraction_trans, energy_fraction_rot1, CM_velocity):
             self.update_energy_and_velocity(idx1, idx2, self.E_total_pre, energy_fraction_trans, energy_fraction_rot1, CM_velocity)
 
-            
         elif self.use_mdn == True: # Inelastic collision using MDN-based surrogate model
             self.inelastic_collisions += 1
             
@@ -372,8 +380,6 @@ class DSMCSimulation:
             
             #  update_energy_and_velocity(self, idx1, idx2, E_total_pre, energy_fraction_trans, energy_fraction_rot1, CM_velocity):
             self.update_energy_and_velocity(idx1, idx2, self.E_total_pre, energy_fraction_trans, energy_fraction_rot1, CM_velocity)
-                
-
 
     def random_unit_vector(self):
         """Generate a random unit vector uniformly distributed over the sphere."""
@@ -398,12 +404,12 @@ class DSMCSimulation:
                     max_rel_velocity = rel_velocity_magnitude
 
         return max_rel_velocity
-
+    
     def calculate_relative_velocity(self, vel1, vel2):
         """Calculate the relative velocity between two particles."""
         relative_velocity = vel1 - vel2
         return relative_velocity
-
+    
     def calculate_total_energy(self):
         """Calculate the total translational and rotational energy in the system."""
         total_kinetic_energy = np.sum([self.compute_kinetic_energy(vel) for vel in self.velocities])
