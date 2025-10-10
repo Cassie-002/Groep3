@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import procrustes
 from scipy.stats import gaussian_kde, mannwhitneyu
+from scipy.special import kl_div
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(ROOT_DIR, 'models')
@@ -28,6 +29,7 @@ def parse_args():
     parser.add_argument('--name', type=str, default='mdn', help='Name of the model')
     parser.add_argument('--data', type=str, default='collision_dataset.txt', help='Path to the dataset file')
     parser.add_argument('--save-figures', action='store_true', help='Save figures instead of showing them.')
+    parser.add_argument('--kl-divergence', action='store_true', help='Calculate KL divergence between CTC and MDN distributions')
     return parser.parse_args()
 
 def main():
@@ -309,10 +311,10 @@ def main():
     # Plot marginal distributions and perform statistical test
     if args.marginals:
         # Compute marginal distributions for posterior energies
-        Z_MDN_t, _, _, _, _ = density_kernel(MDN_t)
-        Z_CTC_t, xmin_t, xmax_t, _, _ = density_kernel(CTC_t)
-        Z_MDN_r, _, _, _, _ = density_kernel(MDN_r)
-        Z_CTC_r, xmin_r, xmax_r, _, _ = density_kernel(CTC_r)
+        Z_MDN_t, _, _, _, _ = density_kernel(MDN_t, N=100)
+        Z_CTC_t, xmin_t, xmax_t, _, _ = density_kernel(CTC_t, N=100)
+        Z_MDN_r, _, _, _, _ = density_kernel(MDN_r, N=100)
+        Z_CTC_r, xmin_r, xmax_r, _, _ = density_kernel(CTC_r, N=100)
         
         marginal_mdn_t = np.sum(Z_MDN_t, axis=0)
         marginal_ctc_t = np.sum(Z_CTC_t, axis=0)
@@ -357,13 +359,24 @@ def main():
         # Perform Mann-Whitney U test to compare distributions
         U_t, p_t = mannwhitneyu(marginal_mdn_t, marginal_ctc_t)
         U_r, p_r = mannwhitneyu(marginal_mdn_r, marginal_ctc_r)
+        
+        # KL-divergence
+        out = kl_div(marginal_ctc_t, marginal_mdn_t)
 
+        # plt.plot(out)
+        # plt.show()
+        
         print("\n Mann-Whitney U test:")
         print(f"  U_t: {U_t}")
         print("  Distribution is significantly different" if p_t < 0.05 else "  No significant difference in distribution")
         print(f"  U_r: {U_r}")
         print("  Distribution is significantly different" if p_r < 0.05 else "  No significant difference in distribution\n")
         print("-" * 40)
+        
+        # print("\n KL divergence:")
+        # print(f"  KL divergence eps_t: {(out)}\n")
+        # print("-" * 40)
+        
             
     if args.evaluate:        
         print(f"\n NLL: {model.evaluate(x_test, y_test)}")
