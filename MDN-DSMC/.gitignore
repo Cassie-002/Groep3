@@ -10,3 +10,4 @@ figures/*
 *.h5
 *.DS_Store
 *.csv
+bash.py
