@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument('--name', type=str, default='mdn', help='Name of the model')
     parser.add_argument('--data', type=str, default='collision_dataset.txt', help='Path to the dataset file')
     parser.add_argument('--symmetrize', action='store_true', help='Use symmetrized MDN architecture')
+    parser.add_argument('--disambiguate', action='store_true', help='Use disambiguation layer in MDN architecture')
 
     return parser.parse_args()
 
@@ -46,7 +47,7 @@ def main():
         )
     ]
 
-    mdn = build_model(args.nr_gaussians, args.activation_function, args.nr_neurons, symmetrize=args.symmetrize)
+    mdn = build_model(args.nr_gaussians, args.activation_function, args.nr_neurons, symmetrize=args.symmetrize, include_b=args.include_b, disambiguate=args.disambiguate)
     
     history = mdn.fit(x_train, 
                         y_train, 
@@ -76,6 +77,7 @@ def main():
                 "data": args.data,
                 "test_size": args.test_size,
                 "symmetrize": args.symmetrize,
+                "disambiguate": args.disambiguate,
                 "final_loss": score
             }
                
