@@ -16,9 +16,42 @@ jax.config.update("jax_enable_x64", True)
 # ---------------------------
 ncoll = 100#number of collisions
 #The molecule parameters of Hydrogen are obtained from:
-#https://ris.utwente.nl/ws/portalfiles/portal/420745930/barraco-et-al-2023-comparison-of-eight-classical-lennard-jones-based-h2-molecular-models-in-the-gas-phase-at.pdf
+'''
+TY  - JOUR
+T1  - Comparison of Eight Classical Lennard-Jones-Based H2 Molecular Models in the Gas Phase at Temperatures and Pressures Relevant to Hydrogen On-Board Storage Tanks
+AU  - Barraco, Méryll
+AU  - Neyertz, Sylvie
+AU  - Benes, Nieck E.
+AU  - Brown, David
+Y1  - 2023/08/03
+PY  - 2023
+DA  - 2023/08/03
+N1  - doi: 10.1021/acs.jpca.3c03212
+DO  - 10.1021/acs.jpca.3c03212
+T2  - The Journal of Physical Chemistry A
+JF  - The Journal of Physical Chemistry A
+JO  - J. Phys. Chem. A
+SP  - 6335
+EP  - 6346
+VL  - 127
+IS  - 30
+PB  - American Chemical Society
+SN  - 1089-5639
+M3  - doi: 10.1021/acs.jpca.3c03212
+UR  - https://doi.org/10.1021/acs.jpca.3c03212
+'''
 #The molecule parameters for nitrogen and oxygen are obtaind from:
-#https://pdf.sciencedirectassets.com/271566/1-s2.0-S0022407300X03743/1-s2.0-002240739290142Q/main.pdf?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEPr%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJHMEUCIEvu8Tui437KNCCH83Jw1vYlg9e9hE8VDLmPahdB8VR%2BAiEA2qtobxtFYGbKWtQnaN2wV73inKN6P%2F7n7VP70b%2BGOgsquwUIo%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARAFGgwwNTkwMDM1NDY4NjUiDMZzqmxd1jaNoWqyMiqPBXLbKJbcCQj%2FbfJFK2XvgwwPCW8LAGlO42iKnXzdfORv9vBFzkvvGneRS5Om2VKqZtXJUGPZfmhK7KudTQfQRnPQ4E2yflFKOQOZPnVpB9dCKqX3acD7g3YY6fSgU2ipx8Mu8WGAAmXiolilrpw0YbkxpD6PtRNLSKwSdByYc8CGB3nY7m9dNIt%2BHffnYRqFg%2B2TprAuG9BY%2FaHZp%2F%2FjfT21DgKfmn9h9PvZADpR9FuvQ6xC40hdKYWMTByzZLuau0FL8D29kA4kzbBSH4OMeVhpPdjWA0KTmbcsNuijO69hwDmfkPylIzz28CgSA6lO6GxPaBena9DsB5oQE6LmTMt45EOEh%2FGOd7EeugdSeN2%2F2dguLYNsQPnYeqUSH2zwe9dCYAZEIAKe6WLmN9f58wfg8hvXnGO0V9LXaqPxCVVDhsweozEa62FzSrSBDN4mUhRxfm6b4hc7aINZe7VFNju0ve7KdfDLHYYSxgVEf8b9zZijF1RE0IGGplrS%2BrzirTgx6CLc%2FKD2MMVGVUq8ouxUKIweC5jPjXiZyXznX7waGEqnt%2FCDg3Fwh54O4aQ30oJTliz7weBOqYrvqNfF2ymLefAojxb%2B25kHb%2B1Wog1TbWLMoPPxk3snqY1PAlJMMVDDNYdRgGCc4EOOnyUCccSNsasoabeJyIILZTjOo665OQCVX2o0GIkVTklMak5bT%2FCuD0VvBmFrYPpc6zZMuEeLW1bzVAH2C%2F0SOMmjqZFCm5C%2Bi30gMgy3pcDZecviExw9yj0VRTn7vo6QmVczcGAbWupcARpoiAoY6y6rBaXlMyXdQ8AfuE3rNsmz%2FgAmV6LgKg0hHeYNegPgfJvaU3YewATfvBnV0yVKnv8EhOsw0p%2FIxwY6sQHo5BkIRi5KBElWV8a%2BbmynyG5zWlTjcBdqRtokJyDLF1tBl29pzN%2Fid4AIiQPVDrqWtso5CXQ8fpT6mdv4XgLqPYMq7yzX4d7%2FDe3dZa02BOYcyL0yac%2BUvhNksb0b456BSJVMe%2FJOZjpPV910LVw4o5z389gGx%2Bm3ubA5%2FRGpledv2fgUUEcvLyzVaY0RtblPKjGeHrSNEM5S0C%2Bnrbft%2FzAuYeEqciXXj70aYmcPtfA%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20251017T095603Z&X-Amz-SignedHeaders=host&X-Amz-Expires=300&X-Amz-Credential=ASIAQ3PHCVTYSUDCJPSX%2F20251017%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=1a098ca9fa6a95eea95fc1b1acc4b70c2f705958cd6ba4e83e7b9b4e20fdee71&hash=24d9064ccb09a64e60d3f8433a413684048a331da12afa248ac3890d1e6c1052&host=68042c943591013ac2b2430a89b270f6af2c76d8dfd086a07176afe7c76c2c61&pii=002240739290142Q&tid=spdf-2037ae40-9e87-4717-b377-c0f114d042c4&sid=a89412d16d34d3449f1846c76e0ba989b007gxrqb&type=client&tsoh=d3d3LnNjaWVuY2VkaXJlY3QuY29t&rh=d3d3LnNjaWVuY2VkaXJlY3QuY29t&ua=140d595d010005025d53&rr=98feec838c870b5e&cc=nl
+'''
+J.-P. Bouanich,
+Site-site Lennard-Jones potential parameters for N2, O2, H2, CO and CO2,
+Journal of Quantitative Spectroscopy and Radiative Transfer,
+Volume 47, Issue 4,
+1992,
+Pages 243-250,
+ISSN 0022-4073,
+https://doi.org/10.1016/0022-4073(92)90142-Q.
+(https://www.sciencedirect.com/science/article/pii/002240739290142Q)
+'''
 # Molecule database
 molecule_params = {
     "H2": {"m_atom": 1.6738e-27, "bondLength": 0.74e-10, "sigma": 2.72e-10, "eps_K": 10.00},
@@ -37,7 +70,10 @@ I_init = 0.5 * (d_H2_init**2) * m_H
 epsilon = molecule_params[molecule]["eps_K"]  * kB         # hydrogen-hydrogen LJ well depth [J]
 
 #Morse motential parameter source
-#https://www.scielo.org.mx/scielo.php?pid=S0035-001X2020000600742&script=sci_arttext
+'''
+AMADI, P. O. et al. Information entropies for H2 and ScF diatomic molecules with Deng- Fan-Eckart potential. Rev. mex. fis. [online]. 2020, vol.66, n.6 [citado  2025-11-03], pp.742-748. Disponible en: <http://www.scielo.org.mx/scielo.php?script=sci_arttext&pid=S0035-001X2020000600742&lng=es&nrm=iso>.  Epub 31-Ene-2022. ISSN 0035-001X.  https://doi.org/10.31349/revmexfis.66.742.
+'''
+
 D_e=38266*1.986e-23
 delta = 0.51e-10
 
