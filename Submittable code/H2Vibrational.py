@@ -1,0 +1,535 @@
+# collision_jax_optimized.py
+import math
+import jax
+import jax.numpy as jnp
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from jax import jit, lax, vmap
+import random
+
+# Enable double precision in JAX (MATLAB uses double precision by default)
+jax.config.update("jax_enable_x64", True)
+
+# ---------------------------
+# Physical constants & settings
+# ---------------------------
+ncoll = 100#number of collisions
+#The molecule parameters of Hydrogen are obtained from:
+#https://ris.utwente.nl/ws/portalfiles/portal/420745930/barraco-et-al-2023-comparison-of-eight-classical-lennard-jones-based-h2-molecular-models-in-the-gas-phase-at.pdf
+#The molecule parameters for nitrogen and oxygen are obtaind from:
+#https://pdf.sciencedirectassets.com/271566/1-s2.0-S0022407300X03743/1-s2.0-002240739290142Q/main.pdf?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEPr%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJHMEUCIEvu8Tui437KNCCH83Jw1vYlg9e9hE8VDLmPahdB8VR%2BAiEA2qtobxtFYGbKWtQnaN2wV73inKN6P%2F7n7VP70b%2BGOgsquwUIo%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARAFGgwwNTkwMDM1NDY4NjUiDMZzqmxd1jaNoWqyMiqPBXLbKJbcCQj%2FbfJFK2XvgwwPCW8LAGlO42iKnXzdfORv9vBFzkvvGneRS5Om2VKqZtXJUGPZfmhK7KudTQfQRnPQ4E2yflFKOQOZPnVpB9dCKqX3acD7g3YY6fSgU2ipx8Mu8WGAAmXiolilrpw0YbkxpD6PtRNLSKwSdByYc8CGB3nY7m9dNIt%2BHffnYRqFg%2B2TprAuG9BY%2FaHZp%2F%2FjfT21DgKfmn9h9PvZADpR9FuvQ6xC40hdKYWMTByzZLuau0FL8D29kA4kzbBSH4OMeVhpPdjWA0KTmbcsNuijO69hwDmfkPylIzz28CgSA6lO6GxPaBena9DsB5oQE6LmTMt45EOEh%2FGOd7EeugdSeN2%2F2dguLYNsQPnYeqUSH2zwe9dCYAZEIAKe6WLmN9f58wfg8hvXnGO0V9LXaqPxCVVDhsweozEa62FzSrSBDN4mUhRxfm6b4hc7aINZe7VFNju0ve7KdfDLHYYSxgVEf8b9zZijF1RE0IGGplrS%2BrzirTgx6CLc%2FKD2MMVGVUq8ouxUKIweC5jPjXiZyXznX7waGEqnt%2FCDg3Fwh54O4aQ30oJTliz7weBOqYrvqNfF2ymLefAojxb%2B25kHb%2B1Wog1TbWLMoPPxk3snqY1PAlJMMVDDNYdRgGCc4EOOnyUCccSNsasoabeJyIILZTjOo665OQCVX2o0GIkVTklMak5bT%2FCuD0VvBmFrYPpc6zZMuEeLW1bzVAH2C%2F0SOMmjqZFCm5C%2Bi30gMgy3pcDZecviExw9yj0VRTn7vo6QmVczcGAbWupcARpoiAoY6y6rBaXlMyXdQ8AfuE3rNsmz%2FgAmV6LgKg0hHeYNegPgfJvaU3YewATfvBnV0yVKnv8EhOsw0p%2FIxwY6sQHo5BkIRi5KBElWV8a%2BbmynyG5zWlTjcBdqRtokJyDLF1tBl29pzN%2Fid4AIiQPVDrqWtso5CXQ8fpT6mdv4XgLqPYMq7yzX4d7%2FDe3dZa02BOYcyL0yac%2BUvhNksb0b456BSJVMe%2FJOZjpPV910LVw4o5z389gGx%2Bm3ubA5%2FRGpledv2fgUUEcvLyzVaY0RtblPKjGeHrSNEM5S0C%2Bnrbft%2FzAuYeEqciXXj70aYmcPtfA%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20251017T095603Z&X-Amz-SignedHeaders=host&X-Amz-Expires=300&X-Amz-Credential=ASIAQ3PHCVTYSUDCJPSX%2F20251017%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=1a098ca9fa6a95eea95fc1b1acc4b70c2f705958cd6ba4e83e7b9b4e20fdee71&hash=24d9064ccb09a64e60d3f8433a413684048a331da12afa248ac3890d1e6c1052&host=68042c943591013ac2b2430a89b270f6af2c76d8dfd086a07176afe7c76c2c61&pii=002240739290142Q&tid=spdf-2037ae40-9e87-4717-b377-c0f114d042c4&sid=a89412d16d34d3449f1846c76e0ba989b007gxrqb&type=client&tsoh=d3d3LnNjaWVuY2VkaXJlY3QuY29t&rh=d3d3LnNjaWVuY2VkaXJlY3QuY29t&ua=140d595d010005025d53&rr=98feec838c870b5e&cc=nl
+# Molecule database
+molecule_params = {
+    "H2": {"m_atom": 1.6738e-27, "bondLength": 0.74e-10, "sigma": 2.72e-10, "eps_K": 10.00},
+    "N2": {"m_atom": 2.3250e-26, "bondLength": 1.09e-10, "sigma": 3.17e-10, "eps_K": 37.2},
+    "O2": {"m_atom": 2.6567e-26, "bondLength": 1.21e-10, "sigma": 3.01e-10, "eps_K": 51.80}
+}
+
+molecule = "H2"
+
+m_H  = molecule_params[molecule]["m_atom"]           # hydrogen atom mass [kg]
+m_H2 = 2.0*m_H
+sigma_LJ = molecule_params[molecule]["sigma"]        # hydrogen-hydrogen LJ sigma [m]
+kB = 1.38064852e-23
+d_H2_init = molecule_params[molecule]["bondLength"]             # hydrogen-hydrogen bond length [m]
+I_init = 0.5 * (d_H2_init**2) * m_H
+epsilon = molecule_params[molecule]["eps_K"]  * kB         # hydrogen-hydrogen LJ well depth [J]
+
+#Morse motential parameter source
+#https://www.scielo.org.mx/scielo.php?pid=S0035-001X2020000600742&script=sci_arttext
+D_e=38266*1.986e-23
+delta = 0.51e-10
+
+dt = 0.1e-15
+tsim = 2e-12
+nSteps = int(tsim/dt)
+
+seed = 42
+key = jax.random.PRNGKey(seed)
+
+# ---------------------------
+# Helper functions
+# ---------------------------
+
+@jit
+def skew(w):
+    wx, wy, wz = w
+    return jnp.array([[0.0, -wz, wy],
+                      [wz,  0.0, -wx],
+                      [-wy, wx, 0.0]])
+
+@jit
+def getRandRotMat(key1, key2):
+    psi = jax.random.uniform(key1, (), minval=0.0, maxval=2*jnp.pi)
+    phi = jnp.arccos(1 - 2*jax.random.uniform(key2, ()))
+    theta = 0.0
+
+    Rz = jnp.array([[jnp.cos(psi), -jnp.sin(psi), 0],
+                    [jnp.sin(psi),  jnp.cos(psi), 0],
+                    [0,             0,            1]])
+    Ry = jnp.array([[jnp.cos(theta), 0, jnp.sin(theta)],
+                    [0, 1, 0],
+                    [-jnp.sin(theta), 0, jnp.cos(theta)]])
+    Rx = jnp.array([[1, 0, 0],
+                    [0, jnp.cos(phi), -jnp.sin(phi)],
+                    [0, jnp.sin(phi),  jnp.cos(phi)]])
+    return Rz @ Ry @ Rx
+
+#Lennard Jones potential
+@jit
+def LJ_e(Xi, Xj, sigma=sigma_LJ, eps=epsilon):
+    r=Xi-Xj
+    r= jnp.linalg.norm(r)
+    sr6 = (sigma / r)**6
+    return 4.0 * eps * (sr6*sr6 - sr6)
+
+@jit
+def LJ_force_scalar(r, sigma=sigma_LJ, eps=epsilon):
+    s6 = sigma**6
+    r7 = r**7
+    r13 = r**13
+    return 24.0*eps*(2.0*(s6**2)/r13 - s6/r7)
+
+#Morse potential
+@jit
+def M_e(r):
+    return D_e*(1-jnp.exp(-(r-d_H2_init)/delta))**2
+
+@jit
+def M_force_scalar(r):
+    return -2*D_e*(jnp.exp(-(r-d_H2_init)/delta)-jnp.exp(-2*(r-d_H2_init)/delta))/delta
+
+@jit
+def r_Me(E, key):
+    key, subkey = jax.random.split(key)
+    return d_H2_init-delta*jnp.log(1+jax.random.choice(subkey,jnp.array([-1,1]))*jnp.sqrt(E/D_e))
+    #return d_H2_init-delta*jnp.log(1+jnp.sqrt(E/D_e))
+
+@jit
+def r_Me2(E,r):
+    return jnp.where(r>d_H2_init, d_H2_init-delta*jnp.log(1-jnp.sqrt(E/D_e)), d_H2_init-delta*jnp.log(1+jnp.sqrt(E/D_e)))
+
+@jit
+def getFij(Xi, Xj):
+    rij = Xi - Xj
+    r = jnp.linalg.norm(rij)
+    fmag = LJ_force_scalar(r)
+    return jnp.where(r>0, (fmag / r) * rij, jnp.zeros(3))
+
+@jit 
+def getFvib(Xi, Xj):
+    rij = Xi - Xj
+    r = jnp.linalg.norm(rij)
+    fmag = M_force_scalar(r)
+    #return jnp.where(r>d_H2_init, -fmag, fmag)
+    return fmag
+
+
+#Torque
+@jit
+def getM(F13tr, F14tr, F23tr, F24tr, R1, R2, dH2_1, dH2_2):
+    F13_r = F13tr @ R1
+    F14_r = F14tr @ R1
+    F23_r = F23tr @ R1
+    F24_r = F24tr @ R1
+    
+    F31_r = -F13tr @ R2
+    F41_r = -F14tr @ R2
+    F32_r = -F23tr @ R2
+    F42_r = -F24tr @ R2
+
+    M1_x = -dH2_1/2 * (F13_r[1] + F14_r[1]) + dH2_1/2 * (F23_r[1] + F24_r[1])
+    M1_y = dH2_1/2 * (F13_r[0] + F14_r[0]) - dH2_1/2 * (F23_r[0] + F24_r[0])
+    M1_z = 0.0
+    
+    M2_x = -dH2_2/2 * (F31_r[1] + F32_r[1]) + dH2_2/2 * (F41_r[1] + F42_r[1])
+    M2_y = dH2_2/2 * (F31_r[0] + F32_r[0]) - dH2_2/2 * (F41_r[0] + F42_r[0])
+    M2_z = 0.0
+    
+    return jnp.array([M1_x, M1_y, M1_z]), jnp.array([M2_x, M2_y, M2_z])
+
+#force from LJ potential the contributes to vibrational motion.
+@jit
+def getFvibLJ(F13tr, F14tr, F23tr, F24tr, R1, R2, dH2_1, dH2_2):
+    F13_r = F13tr @ R1
+    F14_r = F14tr @ R1
+    F23_r = F23tr @ R1
+    F24_r = F24tr @ R1
+    
+    F31_r = -F13tr @ R2
+    F41_r = -F14tr @ R2
+    F32_r = -F23tr @ R2
+    F42_r = -F24tr @ R2
+
+    #Fij is force on i from j
+    F1 = F13_r[2] + F14_r[2] + F23_r[2] + F24_r[2]
+    F2 = -F1
+    return F1, F2
+
+@jit
+def getVdot(F, m):
+    return F / m
+
+@jit
+def getRdot(w, R):
+    return R @ skew(w)
+
+@jit
+def getWdot(M_body, I_scalar):
+    return M_body / I_scalar
+
+@jit
+def signed_sqrt(val, key, I):
+    sign = jnp.where(jax.random.uniform(key) > 0.5, 1.0, -1.0)
+    return sign * jnp.sqrt(2.0*val/I)
+
+@jit
+def pm_sqrt(val, key):
+    sign = jnp.where(jax.random.uniform(key) > 0.5, 1.0, -1.0)
+    return sign * jnp.sqrt(val)
+
+# ---------------------------
+# Core simulation
+# ---------------------------
+
+@jit
+def simulate_one_collision(keys):
+    kb, kx1, ky1, kz1, kx2, ky2, kz2, kvx1, kvy1,kvz1, kvx2, kvy2, kvz2, kR11, kR12, kR21, kR22, ktheta1, kphi1, ktheta2, kphi2, w1_key, w2_key, w3_key, w4_key, kvibK1, kvibK2, kvibP1, kvibP2, v1_key, v2_key, kr1, kr2 = keys
+
+    # Impact parameter
+    b = jax.random.uniform(kb)*1.1*sigma_LJ
+    
+    # Random energies
+
+    Emax = 1000.0
+    T = 300
+
+    # translational energy
+
+    # Maxwell Boltzmann distrinution
+    # particle 1
+    Etrx1 = jax.random.chisquare(kx1,1) * T *kB/2
+    Etry1 = jax.random.chisquare(ky1,1) * T *kB/2
+    Etrz1 = jax.random.chisquare(kz1,1) * T *kB/2
+
+    # particle 2
+    Etrx2 = jax.random.chisquare(kx2,1) * T *kB/2
+    Etry2 = jax.random.chisquare(ky2,1) * T *kB/2
+    Etrz2 = jax.random.chisquare(kz2,1) * T *kB/2
+
+    # Uniform distribution
+    '''
+    # particle 1
+    Etrx1 = jax.random.uniform(kx1) * Emax *kB
+    Etry1 = jax.random.uniform(ky1) * Emax *kB
+    Etrz1 = jax.random.uniform(kz1) * Emax *kB
+
+    # particle 2
+    Etrx2 = jax.random.uniform(kx2) * Emax *kB
+    Etry2 = jax.random.uniform(ky2) * Emax *kB
+    Etrz2 = jax.random.uniform(kz2) * Emax *kB
+    '''
+    # velocity
+    
+    # particle 1
+    vx1 = pm_sqrt(2* Etrx1 / m_H2, kvx1)
+    vy1 = pm_sqrt(2* Etry1 / m_H2, kvy1)
+    vz1 = pm_sqrt(2* Etrz1 / m_H2, kvz1)
+
+    # particle 2
+    vx2 = pm_sqrt(2* Etrx2 / m_H2, kvx2)
+    vy2 = pm_sqrt(2* Etry2 / m_H2, kvy2)
+    vz2 = pm_sqrt(2* Etrz2 / m_H2, kvz2)
+
+    # relative velocity
+    vtr = 0.5 * jnp.sqrt((vx2-vx1)**2 + (vy2-vy1)**2 + (vz2-vz1)**2)
+
+    # Rotational energy
+
+    # Maxwell Boltzmann distribution
+    # particle 1
+    Er11 = jax.random.chisquare(ktheta1,1) * T *kB/2
+    Er12 = jax.random.chisquare(kphi1,1) * T *kB/2
+
+    # particle 2
+    Er21 = jax.random.chisquare(ktheta2,1) * T *kB/2
+    Er22 = jax.random.chisquare(kphi2,1) * T *kB/2
+
+    # Uniform distribution
+    '''
+    # particle 1
+    Er11 = jax.random.uniform(ktheta1) * Emax *kB
+    Er12 = jax.random.uniform(kphi1) * Emax *kB
+
+    # particle 2
+    Er21 = jax.random.uniform(ktheta2) * Emax *kB
+    Er22 = jax.random.uniform(kphi2) * Emax *kB
+    '''
+    # Vibrational energy
+
+    #particle 1
+    EvibK1 = jax.random.chisquare(kvibK1,1) * T *kB/2   #Kinetic
+    EvibP1 = jax.random.chisquare(kvibP1,1) * T *kB/2   #Potential
+
+    #particle 2
+    EvibK2 = jax.random.chisquare(kvibK2,1) * T *kB/2   #Kinetic
+    EvibP2 = jax.random.chisquare(kvibP2,1) * T *kB/2   #Potential
+
+    
+    # atomic seperation
+    d_H2_1 = r_Me(EvibP1, kr1)
+    I1 = 0.5 * (d_H2_1**2) * m_H
+    d_H2_2 = r_Me(EvibP2, kr2)
+    I2 = 0.5 * (d_H2_2**2) * m_H
+
+    # Angular velocities
+    w11 = signed_sqrt(Er11, w1_key, I1)
+    w12 = signed_sqrt(Er12, w2_key, I1)
+    w21 = signed_sqrt(Er21, w3_key, I2)
+    w22 = signed_sqrt(Er22, w4_key, I2)
+    w1 = jnp.array([w11, w12, 0.0])
+    w2 = jnp.array([w21, w22, 0.0])
+
+    # Initial positions
+    X1 = jnp.array([-2.0*sigma_LJ, 0.0, -b/2.0])
+    X2 = jnp.array([2.0*sigma_LJ, 0.0, b/2.0])
+    X11_0 = jnp.array([0.0,0.0,0.5*d_H2_1])
+    X12_0 = jnp.array([0.0,0.0,-0.5*d_H2_1])
+    X21_0 = jnp.array([0.0,0.0,0.5*d_H2_2])
+    X22_0 = jnp.array([0.0,0.0,-0.5*d_H2_2])
+
+    # Random rotations
+    R1 = getRandRotMat(kR11, kR12)
+    R2 = getRandRotMat(kR21, kR22)
+
+    Xv11 = R1 @ X11_0.T 
+    Xv12 = R1 @ X12_0.T
+    Xv21 = R2 @ X21_0.T 
+    Xv22 = R2 @ X22_0.T
+
+    X11 = X1 + Xv11.T 
+    X12 = X1 + Xv12.T
+    X21 = X2 + Xv21.T
+    X22 = X2 + Xv22.T
+
+    V1 = jnp.array([vtr, 0.0, 0.0])
+    V2 = jnp.array([-vtr,0.0,0.0])
+
+    vibV1 = signed_sqrt(EvibK1, v1_key, m_H2)
+    vibV2 = signed_sqrt(EvibK2, v2_key, m_H2)
+
+    m1 = m_H2; m2 = m_H2
+
+    arr = jnp.zeros(nSteps)
+    arr = arr.at[0].set((EvibP1+EvibK1)/kB)
+
+    # Helper for the while loop state
+    state = (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, 0.0, 0),(arr)
+
+    def cond_fn(state):
+        (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, dr, step),(_) = state
+        return (dr <= 5.0*sigma_LJ) & (step < nSteps)
+        #return step < 5
+
+    def body_fn(state):
+        (X1, X2, V1, V2, vibV1, vibV2, R1, R2, w1, w2, X11, X12, X21, X22, d_H2_1, d_H2_2, I1, I2, dr, step),(arr) = state
+        step += 1
+        dr = jnp.linalg.norm(X1 - X2)
+
+       # Forces
+        F13 = getFij(X11, X21)
+        F14 = getFij(X11, X22)
+        F23 = getFij(X12, X21)
+        F24 = getFij(X12, X22)
+        F1 = F13 + F14 + F23 + F24
+        F2 = -F1
+        M1, M2 = getM(F13, F14, F23, F24, R1, R2, d_H2_1, d_H2_2)
+
+        F12 = getFvib(X11, X12)
+        F34 = getFvib(X21, X22)
+
+        Fextra1, Fextra2 = getFvibLJ(F13, F14, F23, F24, R1, R2, d_H2_1, d_H2_2)
+
+        # Velocity Verlet
+        V1_ = V1 + 0.5*dt*getVdot(F1,m1)
+        V2_ = V2 + 0.5*dt*getVdot(F2,m2)
+        vibV1_ = vibV1 + 0.5*dt*getVdot(F12,m1) + 0.5*dt*getVdot(Fextra1,m1)
+        vibV2_ = vibV2 + 0.5*dt*getVdot(F34,m2) + 0.5*dt*getVdot(Fextra2,m2)
+        X1_new = X1 + dt*V1_
+        X2_new = X2 + dt*V2_
+        d_H2_1_new = d_H2_1 + dt*vibV1_
+        d_H2_2_new = d_H2_2 + dt*vibV2_
+        X11_0_new = jnp.array([0.0,0.0,0.5*(d_H2_1_new)])
+        X12_0_new = jnp.array([0.0,0.0,-0.5*(d_H2_1_new)])
+        X21_0_new = jnp.array([0.0,0.0,0.5*(d_H2_2_new)])
+        X22_0_new = jnp.array([0.0,0.0,-0.5*(d_H2_2_new)])
+        R1_ = R1 + 0.5*dt*getRdot(w1,R1)
+        R2_ = R2 + 0.5*dt*getRdot(w2,R2)
+        w1_ = w1 + 0.5*dt*getWdot(M1,I1)
+        w2_ = w2 + 0.5*dt*getWdot(M2,I2)
+
+        # Full step update
+        R1_new = R1 + dt*getRdot(w1_,R1_)
+        R2_new = R2 + dt*getRdot(w2_,R2_)
+        Xv11_new = R1_new @ X11_0_new.T
+        Xv12_new = R1_new @ X12_0_new.T
+        Xv21_new = R2_new @ X21_0_new.T
+        Xv22_new = R2_new @ X22_0_new.T
+        X11_new = X1_new + Xv11_new.T
+        X12_new = X1_new + Xv12_new.T
+        X21_new = X2_new + Xv21_new.T
+        X22_new = X2_new + Xv22_new.T
+
+        # Recompute forces at t+dt
+        F13_new = getFij(X11_new, X21_new)
+        F14_new = getFij(X11_new, X22_new)
+        F23_new = getFij(X12_new, X21_new)
+        F24_new = getFij(X12_new, X22_new)
+        F1_new = F13_new + F14_new + F23_new + F24_new
+        F2_new = -F1_new
+        M1_new, M2_new = getM(F13_new,F14_new,F23_new,F24_new,R1_new,R2_new,d_H2_1, d_H2_2)
+
+        F12_new = getFvib(X11_new, X12_new)
+        F34_new = getFvib(X21_new, X22_new)
+        Fextra1_new, Fextra2_new = getFvibLJ(F13_new,F14_new,F23_new,F24_new,R1_new,R2_new,d_H2_1, d_H2_2)
+
+        I1_new = 0.5 * (d_H2_1_new**2) * m_H
+        I2_new = 0.5 * (d_H2_2_new**2) * m_H
+
+
+        V1_new = V1_ + 0.5*dt*getVdot(F1_new,m1)
+        V2_new = V2_ + 0.5*dt*getVdot(F2_new,m2)
+        vibV1_new = vibV1_ + 0.5*dt*getVdot(F12_new,m1) + 0.5*dt*getVdot(Fextra1_new,m1)
+        vibV2_new = vibV2_ + 0.5*dt*getVdot(F34_new,m2) + 0.5*dt*getVdot(Fextra2_new,m2)
+        w1_new = w1_ + 0.5*dt*getWdot(M1_new,I1_new)
+        w2_new = w2_ + 0.5*dt*getWdot(M2_new,I2_new)
+
+        
+       #Get new energies
+        Etr_new =0.5*m1*jnp.linalg.norm(V1_new)**2 + 0.5*m2*jnp.linalg.norm(V2_new)**2
+        Erot1_new =0.5*I1_new*(w1_new[0]**2 + w1_new[1]**2)
+        Erot2_new =0.5*I2_new*(w2_new[0]**2 + w2_new[1]**2)
+
+        Ekin1_new = 0.5*m1*vibV1_new**2
+        Epot1_new = M_e(d_H2_1_new)
+        Evib1_new = Ekin1_new +Epot1_new
+
+        Ekin2_new = 0.5*m2*vibV2_new**2
+        Epot2_new = M_e(d_H2_2_new)
+        Evib2_new = Ekin2_new +Epot2_new
+
+        Epot_new = LJ_e(X1_new, X2_new)
+        
+        arr = arr.at[step].set(Evib1_new/kB) #Just an array to keep track of a value troughout the collision
+     
+
+
+
+        return (X1_new, X2_new, V1_new, V2_new, vibV1_new, vibV2_new, R1_new, R2_new, w1_new, w2_new, X11_new, X12_new, X21_new, X22_new,
+                 d_H2_1_new, d_H2_2_new, I1_new, I2_new, dr, step),(arr)
+
+    (X1f, X2f, V1f, V2f, vibV1f, vibV2f, R1f, R2f, w1f, w2f, X11_new, X12_new, X21_new, X22_new, d_H2_1f, d_H2_2f, I1f, I2f, drf, _),(arrf)= lax.while_loop(cond_fn, body_fn, state)
+
+    # Energies
+    Etr_init = 0.5*m1*jnp.linalg.norm(jnp.array([vtr,0,0]))**2 + 0.5*m2*jnp.linalg.norm(jnp.array([-vtr,0,0]))**2
+    Erot1_init = Er11 + Er12
+    Erot2_init = Er21 +Er22
+    Evib1_init = EvibK1 + EvibP1
+    Evib2_init = EvibK2 + EvibP2
+
+    E_init = Etr_init + Erot1_init + Erot2_init + Evib1_init + Evib2_init
+
+    Etr_final = 0.5*m1*jnp.linalg.norm(V1f)**2 + 0.5*m2*jnp.linalg.norm(V2f)**2
+    Erot1_final = 0.5*I1f*(w1f[0]**2 + w1f[1]**2)
+    Erot2_final = 0.5*I2f*(w2f[0]**2 + w2f[1]**2)
+    Ekin1_final = 0.5*m1*vibV1f**2
+    Epot1_final = M_e(d_H2_1f)
+    Evib1_final = Ekin1_final +Epot1_final
+    Ekin2_final = 0.5*m2*vibV2f**2
+    Epot2_final = M_e(d_H2_2f)
+    Evib2_final = Ekin2_final +Epot2_final
+
+    #Energy normalization. There is energy leakage. This normalization assumes that proportion of energy after collision is correct.
+    E_final = Etr_final + Erot1_final + Erot2_final + Evib1_final + Evib2_final
+
+    norm = E_init/E_final
+
+    Etr_final = norm*Etr_final
+    Erot1_final = norm*Erot1_final
+    Erot2_final = norm*Erot2_final
+    Evib1_final = norm*Evib1_final
+    Evib2_final = norm*Evib2_final
+
+
+
+    return jnp.array([b/sigma_LJ]), jnp.array([Etr_init/kB]), jnp.array([Erot1_init/kB]), jnp.array([Erot2_init/kB]), jnp.array([Evib1_init/kB]), jnp.array([Evib2_init/kB]), jnp.array([Etr_final/kB]), jnp.array([Erot1_final/kB]), jnp.array([Erot2_final/kB]), jnp.array([Evib1_final/kB]), jnp.array([Evib2_final/kB]), arrf
+
+# ---------------------------
+# Run collisions
+# ---------------------------
+keys_all = jax.random.split(key, ncoll*33).reshape(ncoll, 33, 2)
+
+if ncoll == 1:
+    results = simulate_one_collision(keys_all[0])
+else:
+    results = vmap(simulate_one_collision)(keys_all)
+
+b_list, Etr_init_list, Er1_init_list, Er2_init_list, Ev1_init_list, Ev2_init_list, Etr_final_list, Er1_final_list, Er2_final_list, Ev1_final_list, Ev2_final_list, arrf = results
+
+
+# Convert to numpy arrays for DataFrame
+b_list = np.array(b_list).flatten()
+Etr_init_list = np.array(Etr_init_list).flatten()
+Er1_init_list = np.array(Er1_init_list).flatten()
+Er2_init_list = np.array(Er2_init_list).flatten()
+Ev1_init_list = np.array(Ev1_init_list).flatten()
+Ev2_init_list = np.array(Ev2_init_list).flatten()
+Etr_final_list = np.array(Etr_final_list).flatten()
+Er1_final_list = np.array(Er1_final_list).flatten()
+Er2_final_list = np.array(Er2_final_list).flatten()
+Ev1_final_list = np.array(Ev1_final_list).flatten()
+Ev2_final_list = np.array(Ev2_final_list).flatten()
+arrf = np.array(arrf).flatten()
+
+
+df = pd.DataFrame({
+    
+    'b': np.array(b_list),
+    'Etr': np.array(Etr_init_list),
+    'Er1': np.array(Er1_init_list),
+    'Er2': np.array(Er2_init_list),
+    'Ev1': np.array(Ev1_init_list),
+    'Ev2': np.array(Ev2_init_list),
+    'Etrp': np.array(Etr_final_list),
+    'Er1p': np.array(Er1_final_list),
+    'Er2p': np.array(Er2_final_list),
+    'Ev1p': np.array(Ev1_final_list),
+    'Ev2p': np.array(Ev2_final_list)
+    
+    #'Ev1': np.array(arrf)    
+})
+
+'''
+plt.figure(figsize=(14,4))
+
+plt.subplot(1,2,1)
+plt.scatter(df['Ev1'], df['Ev1p'], s=3, alpha=0.1)
+plt.xlabel("E_v,A / k_B (K)"); plt.ylabel("E_v,A' / k_B (K)")
+plt.title("Vibrational energy (A)")
+
+plt.subplot(1,2,2)
+plt.scatter(df['Ev2'], df['Ev2p'], s=3, alpha=0.1)
+plt.xlabel("E_r,B / k_B (K)"); plt.ylabel("E_v,B' / k_B (K)")
+plt.title("Vibrational energy (B)")
+
+plt.suptitle("Energy correlation graphs", fontsize=16)
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.show()
+'''
+
+
+outname = f'vib_collision_dataset_{molecule}_{ncoll}.csv'
+df.to_csv(outname, float_format="%.20f", index=False)
+print(f"Saved dataset to {outname}")
+
